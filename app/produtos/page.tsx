@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import SearchBar from '@/components/SearchBar';
 import { products, categories } from '@/lib/mockData';
 
-export default function ProdutosPage() {
+function ProdutosContent() {
   const searchParams = useSearchParams();
   const [filteredProducts, setFilteredProducts] = useState(products);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
