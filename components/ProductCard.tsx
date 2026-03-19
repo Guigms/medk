@@ -10,6 +10,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const { addToCart } = useCart();
   const finalPrice = product.discount 
     ? calculateDiscountPrice(product.price, product.discount)
     : product.price;
