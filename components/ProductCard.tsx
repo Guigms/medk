@@ -2,6 +2,7 @@
 
 import { Product } from '@/lib/types';
 import { formatPrice, formatWhatsAppLink, calculateDiscountPrice } from '@/lib/utils';
+import { useCart } from '@/lib/cart';
 import Image from 'next/image';
 
 interface ProductCardProps {
