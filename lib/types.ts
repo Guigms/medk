@@ -53,3 +53,15 @@ export interface User {
   name: string;
   role: 'admin' | 'user';
 }
+
+export interface DeliveryOption {
+  id: string;
+  name: string;
+  price: number;
+  estimatedDays: string;
+}
+
+export interface PrescriptionUpload {
+  file: File | null;
+  preview: string | null;
+}
