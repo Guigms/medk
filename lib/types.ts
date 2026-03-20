@@ -10,6 +10,9 @@ export interface Product {
   available: boolean;
   featured?: boolean;
   discount?: number;
+  requiresPrescription?: boolean;
+  expiryDate?: string;
+  clicks?: number;
 }
 
 export interface Category {
