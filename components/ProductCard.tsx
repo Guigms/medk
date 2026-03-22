@@ -3,6 +3,8 @@
 import { Product } from '@/lib/types';
 import { formatPrice, formatWhatsAppLink, calculateDiscountPrice } from '@/lib/utils';
 import { useCart } from '@/lib/cart';
+import { useFavorites } from '@/lib/favorites';
+import PrescriptionAlert from './PrescriptionAlert';
 import Image from 'next/image';
 
 interface ProductCardProps {
@@ -11,9 +13,20 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
+  const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
+  const favorite = isFavorite(product.id);
+  
   const finalPrice = product.discount 
     ? calculateDiscountPrice(product.price, product.discount)
     : product.price;
+
+  const handleFavoriteClick = () => {
+    if (favorite) {
+      removeFromFavorites(product.id);
+    } else {
+      addToFavorites(product);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow" data-testid={`product-card-${product.id}`}>
