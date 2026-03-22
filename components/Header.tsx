@@ -17,6 +17,7 @@ export default function Header() {
               <span className="flex items-center gap-1">
                 📍 R. N, 4081B - Passaré, Fortaleza - CE
               </span>
+              <BusinessStatus />
             </div>
             <div className="hidden md:flex items-center gap-4">
               <span>⭐ 5.0 no Google</span>
