@@ -1,13 +1,180 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuário (Admin e clientes futuros)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  favorites Favorite[]
+  orders    Order[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// Modelo de Categoria
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  icon        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// Modelo de Produto
+model Product {
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String   @db.Text
+  price                Decimal  @db.Decimal(10, 2)
+  image                String
+  available            Boolean  @default(true)
+  featured             Boolean  @default(false)
+  discount             Int?
+  requiresPrescription Boolean  @default(false)
+  expiryDate           DateTime?
+  stock                Int      @default(0)
+  categoryId           String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  category     Category       @relation(fields: [categoryId], references: [id])
+  favorites    Favorite[]
+  orderItems   OrderItem[]
+  productClick ProductClick[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+// Modelo de Banner Promocional
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String
+  image     String
+  link      String?
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("banners")
+}
+
+// Modelo de Depoimento
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  rating    Int
+  comment   String   @db.Text
+  date      DateTime
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+// Modelo de Favoritos
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("favorites")
+}
+
+// Modelo de Pedido
+model Order {
+  id              String      @id @default(cuid())
+  userId          String?
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  deliveryOption  String
+  deliveryAddress String?
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING)
+  hasPrescription Boolean     @default(false)
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user       User?       @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  DELIVERING
+  COMPLETED
+  CANCELLED
+}
+
+// Itens do Pedido
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// Analytics - Cliques em Produtos
+model ProductClick {
+  id        String   @id @default(cuid())
+  productId String
+  clickedAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([clickedAt])
+  @@map("product_clicks")
 }
