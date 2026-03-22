@@ -13,7 +13,7 @@ export default function CartButton({ onClick }: CartButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-24 right-6 z-50 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 group"
+      className="fixed bottom-24 right-6 z-50 bg-[#10BCEC] text-white p-4 rounded-full shadow-lg hover:bg-[#0da5d1] transition-all hover:scale-110 group"
       data-testid="cart-button"
       aria-label="Ver carrinho"
     >
@@ -27,7 +27,7 @@ export default function CartButton({ onClick }: CartButtonProps) {
           />
         </svg>
         {totalItems > 0 && (
-          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center" data-testid="cart-count">
+          <span className="absolute -top-2 -right-2 bg-[#E5202A] text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center" data-testid="cart-count">
             {totalItems}
           </span>
         )}

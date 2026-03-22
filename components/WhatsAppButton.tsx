@@ -8,7 +8,7 @@ export default function WhatsAppButton() {
       href={formatWhatsAppLink()}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-all hover:scale-110 group"
+      className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-lg hover:bg-[#1ebe57] transition-all hover:scale-110 group"
       data-testid="whatsapp-button"
       aria-label="Fale conosco no WhatsApp"
     >
