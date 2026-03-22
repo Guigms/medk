@@ -37,14 +37,14 @@ export default function Home() {
               href="https://wa.me/5585213967 83"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-white text-green-600 px-8 py-3 rounded-lg font-bold hover:bg-green-50 transition-colors"
+              className="bg-[#25D366] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#1ebe57] transition-colors"
               data-testid="hero-whatsapp-button"
             >
               💬 Fale Conosco
             </a>
             <Link
               href="/produtos"
-              className="bg-green-700 text-white px-8 py-3 rounded-lg font-bold hover:bg-green-800 transition-colors border-2 border-white"
+              className="bg-[#E5202A] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#c41a24] transition-colors border-2 border-white"
               data-testid="hero-products-button"
             >
               Ver Produtos
