@@ -41,7 +41,10 @@ export const products: Product[] = [
     description: 'Analgésico e antitérmico - Caixa com 20 comprimidos',
     image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
     available: true,
-    featured: true
+    featured: true,
+    requiresPrescription: false,
+    expiryDate: '2026-12-31',
+    clicks: 45
   },
   {
     id: '2',
@@ -50,7 +53,10 @@ export const products: Product[] = [
     price: 12.50,
     description: 'Analgésico e antitérmico - Caixa com 20 comprimidos',
     image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400',
-    available: true
+    available: true,
+    requiresPrescription: false,
+    expiryDate: '2026-08-15',
+    clicks: 38
   },
   {
     id: '3',
@@ -59,7 +65,10 @@ export const products: Product[] = [
     price: 15.90,
     description: 'Anti-inflamatório - Caixa com 20 comprimidos',
     image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400',
-    available: true
+    available: true,
+    requiresPrescription: true,
+    expiryDate: '2026-10-20',
+    clicks: 52
   },
   {
     id: '4',
@@ -69,7 +78,10 @@ export const products: Product[] = [
     description: 'Protetor gástrico - Caixa com 28 cápsulas',
     image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
     available: true,
-    featured: true
+    featured: true,
+    requiresPrescription: true,
+    expiryDate: '2026-11-30',
+    clicks: 67
   },
   {
     id: '5',
@@ -78,7 +90,10 @@ export const products: Product[] = [
     price: 22.90,
     description: 'Anti-hipertensivo - Caixa com 30 comprimidos',
     image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400',
-    available: true
+    available: true,
+    requiresPrescription: true,
+    expiryDate: '2026-09-10',
+    clicks: 89
   },
   // Higiene
   {
