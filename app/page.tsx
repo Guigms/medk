@@ -64,14 +64,14 @@ export default function Home() {
               <Link
                 key={category.id}
                 href={`/produtos?categoria=${category.slug}`}
-                className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl hover:shadow-lg transition-all hover:scale-105 text-center group"
+                className="bg-gradient-to-br from-[#10BCEC] from-10% to-[#253289] p-6 rounded-xl hover:shadow-lg transition-all hover:scale-105 text-center group"
                 data-testid={`category-${category.slug}`}
               >
                 <div className="text-5xl mb-3">{category.icon}</div>
-                <h3 className="font-bold text-lg mb-2 text-gray-900 group-hover:text-green-600 transition-colors">
+                <h3 className="font-bold text-lg mb-2 text-white group-hover:text-gray-100 transition-colors">
                   {category.name}
                 </h3>
-                <p className="text-sm text-gray-600">{category.description}</p>
+                <p className="text-sm text-gray-100">{category.description}</p>
               </Link>
             ))}
           </div>
