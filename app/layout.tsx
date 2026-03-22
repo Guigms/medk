@@ -83,11 +83,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
         <CartProvider>
-          <Header />
-          <main className="min-h-screen">{children}</main>
-          <Footer />
-          <WhatsAppButton />
-          <CartWrapper />
+          <FavoritesProvider>
+            <Header />
+            <main className="min-h-screen">{children}</main>
+            <Footer />
+            <WhatsAppButton />
+            <CartWrapper />
+          </FavoritesProvider>
         </CartProvider>
       </body>
     </html>
