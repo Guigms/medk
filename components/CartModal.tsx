@@ -210,7 +210,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                     key={option.id}
                     className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
                       selectedDelivery.id === option.id
-                        ? 'border-green-600 bg-green-50'
+                        ? 'border-[#253289] bg-[#10BCEC] bg-opacity-10'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
