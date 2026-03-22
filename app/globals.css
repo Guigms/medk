@@ -3,6 +3,9 @@
 :root {
   --background: #f9fafb;
   --foreground: #111827;
+  --primary-blue: #253289;
+  --primary-red: #E5202A;
+  --primary-light-blue: #10BCEC;
 }
 
 @theme inline {
@@ -34,12 +37,12 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #16a34a;
+  background: #253289;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #15803d;
+  background: #1a2461;
 }
 
 /* Line clamp utilities */
