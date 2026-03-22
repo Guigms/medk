@@ -87,7 +87,7 @@ export default function Home() {
             </h2>
             <Link
               href="/produtos"
-              className="text-green-600 hover:text-green-700 font-medium flex items-center gap-2"
+              className="text-[#253289] hover:text-[#10BCEC] font-medium flex items-center gap-2"
             >
               Ver todos
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
