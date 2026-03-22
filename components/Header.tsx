@@ -85,46 +85,46 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-green-500" data-testid="mobile-menu">
+          <nav className="md:hidden py-4 border-t border-[#10BCEC]" data-testid="mobile-menu">
             <div className="flex flex-col gap-4">
               <Link 
                 href="/" 
-                className="hover:text-green-100 transition-colors"
+                className="hover:text-[#10BCEC] transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Início
               </Link>
               <Link 
                 href="/produtos" 
-                className="hover:text-green-100 transition-colors"
+                className="hover:text-[#10BCEC] transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Produtos
               </Link>
               <Link 
                 href="/favoritos" 
-                className="hover:text-green-100 transition-colors flex items-center gap-1"
+                className="hover:text-[#10BCEC] transition-colors flex items-center gap-1"
                 onClick={() => setIsMenuOpen(false)}
               >
                 ❤️ Favoritos
               </Link>
               <Link 
                 href="/servicos" 
-                className="hover:text-green-100 transition-colors"
+                className="hover:text-[#10BCEC] transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Serviços
               </Link>
               <Link 
                 href="/contato" 
-                className="hover:text-green-100 transition-colors"
+                className="hover:text-[#10BCEC] transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contato
               </Link>
               <Link 
                 href="/admin" 
-                className="bg-white text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 transition-colors font-medium inline-block"
+                className="bg-[#E5202A] text-white px-4 py-2 rounded-lg hover:bg-[#c41a24] transition-colors font-medium inline-block"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Admin
