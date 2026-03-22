@@ -3,15 +3,16 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import BusinessStatus from './BusinessStatus';
+import Image from 'next/image';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="bg-green-600 text-white sticky top-0 z-50 shadow-md">
+    <header className="bg-[#253289] text-white sticky top-0 z-50 shadow-md">
       <div className="container mx-auto px-4">
         {/* Top bar */}
-        <div className="border-b border-green-500 py-2 text-sm">
+        <div className="border-b border-[#10BCEC] py-2 text-sm">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
@@ -32,11 +33,17 @@ export default function Header() {
         <div className="py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <Link href="/" className="text-2xl font-bold flex items-center gap-2">
-              <span className="text-3xl">💊</span>
+            <Link href="/" className="flex items-center gap-3">
+              <Image 
+                src="/medk-logo.jpeg" 
+                alt="Farmácia Medk" 
+                width={60} 
+                height={60}
+                className="rounded-lg"
+              />
               <div>
-                <div className="text-xl md:text-2xl">Farmácia Medk</div>
-                <div className="text-xs text-green-100">Sua saúde em boas mãos</div>
+                <div className="text-xl md:text-2xl font-bold">Farmácia Medk</div>
+                <div className="text-xs text-[#10BCEC]">Compromisso com a sua saúde</div>
               </div>
             </Link>
 
