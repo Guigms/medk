@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import BusinessStatus from './BusinessStatus';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
