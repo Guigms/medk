@@ -305,7 +305,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             <div className="space-y-2">
               <button
                 onClick={handleCheckout}
-                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-bold text-lg flex items-center justify-center gap-2"
+                className="w-full bg-[#25D366] text-white py-3 rounded-lg hover:bg-[#1ebe57] transition-colors font-bold text-lg flex items-center justify-center gap-2"
                 data-testid="checkout-button"
               >
                 💬 Finalizar Pedido no WhatsApp
