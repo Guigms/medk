@@ -126,7 +126,7 @@ export default function Home() {
       </section>
 
       {/* Social Proof / Testimonials */}
-      <section className="py-16 bg-gradient-to-br from-green-600 to-green-500 text-white">
+      <section className="py-16 bg-gradient-to-br from-[#253289] to-[#10BCEC] text-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <div className="flex items-center justify-center gap-2 mb-4">
