@@ -198,13 +198,107 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="border-t border-gray-200 p-4 bg-gray-50 space-y-4">
+            {/* Delivery Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🚚 Opção de Entrega
+              </label>
+              <div className="space-y-2">
+                {deliveryOptions.map((option) => (
+                  <label
+                    key={option.id}
+                    className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                      selectedDelivery.id === option.id
+                        ? 'border-green-600 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="delivery"
+                      value={option.id}
+                      checked={selectedDelivery.id === option.id}
+                      onChange={() => setSelectedDelivery(option)}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{option.name}</div>
+                      <div className="text-xs text-gray-600">{option.estimatedDays}</div>
+                    </div>
+                    <div className="font-bold text-gray-900">
+                      {option.price === 0 ? 'Grátis' : formatPrice(option.price)}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Prescription Upload */}
+            {hasPrescriptionItems && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📋 Receita Médica (Opcional)
+                </label>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
+                  <p className="text-xs text-yellow-700">
+                    ⚠️ Seu pedido contém medicamentos que exigem receita. 
+                    Você pode anexar agora ou apresentar na entrega.
+                  </p>
+                </div>
+                
+                {prescriptionPreview ? (
+                  <div className="relative">
+                    <img 
+                      src={prescriptionPreview} 
+                      alt="Receita" 
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      onClick={() => {
+                        setPrescriptionFile(null);
+                        setPrescriptionPreview(null);
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <label className="block w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-500 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePrescriptionUpload}
+                      className="hidden"
+                    />
+                    <div className="text-gray-600">
+                      <span className="text-2xl">📷</span>
+                      <p className="text-sm mt-2">Clique para anexar foto da receita</p>
+                    </div>
+                  </label>
+                )}
+              </div>
+            )}
+
             {/* Total */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xl font-bold text-gray-900">Total:</span>
-              <span className="text-2xl font-bold text-green-600" data-testid="cart-total">
-                {formatPrice(getTotalPrice())}
-              </span>
+            <div className="space-y-2 pt-2 border-t border-gray-300">
+              <div className="flex items-center justify-between text-gray-700">
+                <span>Subtotal:</span>
+                <span className="font-medium">{formatPrice(getTotalPrice())}</span>
+              </div>
+              <div className="flex items-center justify-between text-gray-700">
+                <span>Entrega:</span>
+                <span className="font-medium">
+                  {selectedDelivery.price === 0 ? 'Grátis' : formatPrice(selectedDelivery.price)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-300">
+                <span className="text-xl font-bold text-gray-900">Total:</span>
+                <span className="text-2xl font-bold text-green-600" data-testid="cart-total">
+                  {formatPrice(getTotalPrice() + selectedDelivery.price)}
+                </span>
+              </div>
             </div>
 
             {/* Actions */}
