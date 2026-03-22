@@ -49,24 +49,24 @@ export default function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/" className="hover:text-green-100 transition-colors">
+              <Link href="/" className="hover:text-[#10BCEC] transition-colors">
                 Início
               </Link>
-              <Link href="/produtos" className="hover:text-green-100 transition-colors">
+              <Link href="/produtos" className="hover:text-[#10BCEC] transition-colors">
                 Produtos
               </Link>
-              <Link href="/favoritos" className="hover:text-green-100 transition-colors flex items-center gap-1">
+              <Link href="/favoritos" className="hover:text-[#10BCEC] transition-colors flex items-center gap-1">
                 ❤️ Favoritos
               </Link>
-              <Link href="/servicos" className="hover:text-green-100 transition-colors">
+              <Link href="/servicos" className="hover:text-[#10BCEC] transition-colors">
                 Serviços
               </Link>
-              <Link href="/contato" className="hover:text-green-100 transition-colors">
+              <Link href="/contato" className="hover:text-[#10BCEC] transition-colors">
                 Contato
               </Link>
               <Link 
                 href="/admin" 
-                className="bg-white text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 transition-colors font-medium"
+                className="bg-[#E5202A] text-white px-4 py-2 rounded-lg hover:bg-[#c41a24] transition-colors font-medium"
               >
                 Admin
               </Link>
