@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import { CartProvider } from '@/lib/cart';
+import { FavoritesProvider } from '@/lib/favorites';
 import CartWrapper from '@/components/CartWrapper';
 
 const geistSans = Geist({
