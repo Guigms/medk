@@ -95,13 +95,13 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       {/* Modal */}
       <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white z-50 shadow-2xl overflow-hidden flex flex-col" data-testid="cart-modal">
         {/* Header */}
-        <div className="bg-green-600 text-white p-4 flex items-center justify-between">
+        <div className="bg-[#253289] text-white p-4 flex items-center justify-between">
           <h2 className="text-xl font-bold flex items-center gap-2">
             🛒 Meu Carrinho
           </h2>
           <button
             onClick={onClose}
-            className="text-white hover:bg-green-700 p-2 rounded-lg transition-colors"
+            className="text-white hover:bg-[#1a2461] p-2 rounded-lg transition-colors"
             data-testid="close-cart-button"
           >
             ✕
