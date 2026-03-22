@@ -295,7 +295,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-300">
                 <span className="text-xl font-bold text-gray-900">Total:</span>
-                <span className="text-2xl font-bold text-green-600" data-testid="cart-total">
+                <span className="text-2xl font-bold text-[#E5202A]" data-testid="cart-total">
                   {formatPrice(getTotalPrice() + selectedDelivery.price)}
                 </span>
               </div>
