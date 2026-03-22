@@ -11,7 +11,7 @@ export default function Home() {
   return (
     <div>
       {/* Hero Section with Banner */}
-      <section className="relative h-[500px] md:h-[600px] bg-gradient-to-r from-green-600 to-green-500">
+      <section className="relative h-[500px] md:h-[600px] bg-gradient-to-r from-[#253289] to-[#10BCEC]">
         <div className="absolute inset-0">
           <Image
             src={activeBanner.image}
