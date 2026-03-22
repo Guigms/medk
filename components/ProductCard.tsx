@@ -60,12 +60,26 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       {/* Content */}
       <div className="p-4">
+        {/* Favorite Button */}
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md hover:scale-110 transition-transform z-10"
+          data-testid={`favorite-${product.id}`}
+        >
+          <span className="text-xl">
+            {favorite ? '❤️' : '🤍'}
+          </span>
+        </button>
+
         <h3 className="font-bold text-lg mb-2 line-clamp-2" data-testid={`product-name-${product.id}`}>
           {product.name}
         </h3>
         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
           {product.description}
         </p>
+
+        {/* Prescription Alert */}
+        <PrescriptionAlert product={product} />
 
         {/* Price */}
         <div className="mb-4">
