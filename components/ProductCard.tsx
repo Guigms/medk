@@ -104,7 +104,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="space-y-2">
             <button
               onClick={() => addToCart(product)}
-              className="block w-full bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="block w-full bg-[#10BCEC] text-white text-center py-2 rounded-lg hover:bg-[#0da5d1] transition-colors font-medium"
               data-testid={`add-to-cart-${product.id}`}
             >
               🛒 Adicionar ao Carrinho
@@ -113,7 +113,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               href={formatWhatsAppLink(product.name)}
               target="_blank"
               rel="noopener noreferrer"
-              className="block w-full bg-green-500 text-white text-center py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+              className="block w-full bg-[#25D366] text-white text-center py-2 rounded-lg hover:bg-[#1ebe57] transition-colors font-medium"
               data-testid={`product-whatsapp-${product.id}`}
             >
               💬 Pedir Direto
