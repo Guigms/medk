@@ -2,7 +2,9 @@
 
 import { useCart } from '@/lib/cart';
 import { formatPrice, formatWhatsAppLink, calculateDiscountPrice } from '@/lib/utils';
+import { deliveryOptions } from '@/lib/delivery';
 import Image from 'next/image';
+import { useState } from 'react';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -11,6 +13,23 @@ interface CartModalProps {
 
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice } = useCart();
+  const [selectedDelivery, setSelectedDelivery] = useState(deliveryOptions[0]);
+  const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
+  const [prescriptionPreview, setPrescriptionPreview] = useState<string | null>(null);
+
+  const hasPrescriptionItems = items.some(item => item.product.requiresPrescription);
+
+  const handlePrescriptionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPrescriptionFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPrescriptionPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   if (!isOpen) return null;
 
