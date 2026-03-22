@@ -117,7 +117,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
               <p className="text-gray-600 mb-4">Adicione produtos para fazer seu pedido</p>
               <button
                 onClick={onClose}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                className="bg-[#253289] text-white px-6 py-2 rounded-lg hover:bg-[#1a2461] transition-colors"
               >
                 Continuar Comprando
               </button>
