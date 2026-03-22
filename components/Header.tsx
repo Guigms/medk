@@ -95,6 +95,13 @@ export default function Header() {
                 Produtos
               </Link>
               <Link 
+                href="/favoritos" 
+                className="hover:text-green-100 transition-colors flex items-center gap-1"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                ❤️ Favoritos
+              </Link>
+              <Link 
                 href="/servicos" 
                 className="hover:text-green-100 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
