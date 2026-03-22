@@ -47,10 +47,30 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       message += `${index + 1}. *${item.product.name}*\n`;
       message += `   Quantidade: ${item.quantity}\n`;
       message += `   Preço unitário: ${formatPrice(finalPrice)}\n`;
-      message += `   Subtotal: ${formatPrice(finalPrice * item.quantity)}\n\n`;
+      message += `   Subtotal: ${formatPrice(finalPrice * item.quantity)}\n`;
+      
+      if (item.product.requiresPrescription) {
+        message += `   ⚠️ *Requer Receita Médica*\n`;
+      }
+      message += '\n';
     });
 
-    message += `\n💰 *Total: ${formatPrice(getTotalPrice())}*\n\n`;
+    const subtotal = getTotalPrice();
+    const deliveryFee = selectedDelivery.price;
+    const total = subtotal + deliveryFee;
+
+    message += `\n💰 *Subtotal: ${formatPrice(subtotal)}*\n`;
+    message += `🚚 *Entrega (${selectedDelivery.name}): ${formatPrice(deliveryFee)}*\n`;
+    message += `💵 *Total: ${formatPrice(total)}*\n\n`;
+
+    if (hasPrescriptionItems) {
+      message += '📋 *Receita Médica*: ';
+      message += prescriptionFile ? 'Anexada ✅\n' : 'Será apresentada na entrega\n';
+      message += '\n';
+    }
+
+    message += `📍 *Entrega*: ${selectedDelivery.name}\n`;
+    message += `⏰ *Previsão*: ${selectedDelivery.estimatedDays}\n\n`;
     message += 'Gostaria de finalizar este pedido!';
 
     // Abrir WhatsApp
@@ -59,6 +79,8 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
 
     // Limpar carrinho após enviar
     clearCart();
+    setPrescriptionFile(null);
+    setPrescriptionPreview(null);
     onClose();
   };
 
