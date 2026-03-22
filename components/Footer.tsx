@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -9,12 +10,20 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <span className="text-2xl">💊</span>
-              Farmácia Medk
-            </h3>
+            <div className="flex items-center gap-3 mb-4">
+              <Image 
+                src="/medk-logo.jpeg" 
+                alt="Farmácia Medk" 
+                width={50} 
+                height={50}
+                className="rounded-lg"
+              />
+              <h3 className="text-xl font-bold">
+                Farmácia Medk
+              </h3>
+            </div>
             <p className="text-gray-400 text-sm mb-4">
-              Sua saúde em boas mãos no Passaré há mais de 10 anos. Atendimento de qualidade e produtos com os melhores preços.
+              Compromisso com a sua saúde no Passaré há mais de 10 anos. Atendimento de qualidade e produtos com os melhores preços.
             </p>
             <div className="flex items-center gap-2 text-yellow-400">
               <span className="text-2xl">⭐</span>
