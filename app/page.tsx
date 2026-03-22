@@ -171,7 +171,7 @@ export default function Home() {
             href="https://wa.me/5585213967 83"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block bg-green-500 text-white px-12 py-4 rounded-lg font-bold text-lg hover:bg-green-600 transition-colors"
+            className="inline-block bg-[#25D366] text-white px-12 py-4 rounded-lg font-bold text-lg hover:bg-[#1ebe57] transition-colors"
             data-testid="cta-whatsapp-button"
           >
             💬 Falar no WhatsApp
