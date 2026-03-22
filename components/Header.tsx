@@ -48,6 +48,9 @@ export default function Header() {
               <Link href="/produtos" className="hover:text-green-100 transition-colors">
                 Produtos
               </Link>
+              <Link href="/favoritos" className="hover:text-green-100 transition-colors flex items-center gap-1">
+                ❤️ Favoritos
+              </Link>
               <Link href="/servicos" className="hover:text-green-100 transition-colors">
                 Serviços
               </Link>
