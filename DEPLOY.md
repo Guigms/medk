@@ -38,12 +38,13 @@ O projeto foi desenvolvido com sucesso e está 100% funcional! Inclui:
 3. **Configurações**:
    - Framework Preset: **Next.js** (já detectado automaticamente)
    - Root Directory: `./`
-   - Build Command: `yarn build`
+   - Build Command: `npm run build`
    - Output Directory: `.next`
    
-4. **Variáveis de Ambiente** (opcional para produção):
-   - Por enquanto não há variáveis necessárias
-   - Quando implementar o backend, adicionar aqui
+4. **Variáveis de Ambiente** (para banco de dados):
+   - DATABASE_URL: Sua connection string MySQL
+   - NEXTAUTH_SECRET: Chave secreta para autenticação
+   - NEXTAUTH_URL: URL do seu site em produção
 
 5. **Deploy**:
    - Clique em "Deploy"
@@ -74,19 +75,16 @@ cd /app
 netlify deploy --prod
 ```
 
-### 2. GitHub Pages (com adaptador)
-Requer configuração adicional para Next.js static export
-
-### 3. Servidor Próprio
+### 2. Servidor Próprio
 ```bash
 # Build
-yarn build
+npm run build
 
 # Iniciar em modo produção
-yarn start
+npm start
 
 # Ou usar PM2 para manter rodando
-pm2 start yarn --name "medk" -- start
+pm2 start npm --name "medk" -- start
 ```
 
 ## 📊 Páginas Disponíveis
