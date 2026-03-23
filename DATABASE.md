@@ -152,13 +152,13 @@ DATABASE_URL="mysql://root:root@localhost:3306/medk_farmacia"
 ### 2. Gerar Cliente Prisma
 
 ```bash
-yarn prisma:generate
+npm run prisma:generate
 ```
 
 ### 3. Criar Banco e Tabelas
 
 ```bash
-yarn prisma:push
+npm run prisma:push
 ```
 
 Isso vai:
@@ -169,7 +169,7 @@ Isso vai:
 ### 4. Popular com Dados Iniciais (Seed)
 
 ```bash
-yarn prisma:seed
+npm run prisma:seed
 ```
 
 Isso vai criar:
@@ -182,7 +182,7 @@ Isso vai criar:
 ### 5. Verificar Banco (Prisma Studio)
 
 ```bash
-yarn prisma:studio
+npm run prisma:studio
 ```
 
 Abre interface visual em: http://localhost:5555
@@ -193,16 +193,16 @@ Abre interface visual em: http://localhost:5555
 
 ```bash
 # Gerar cliente Prisma após mudanças no schema
-yarn prisma:generate
+npm run prisma:generate
 
 # Aplicar mudanças no banco (desenvolvimento)
-yarn prisma:push
+npm run prisma:push
 
 # Popular banco com dados iniciais
-yarn prisma:seed
+npm run prisma:seed
 
 # Abrir Prisma Studio (interface visual)
-yarn prisma:studio
+npm run prisma:studio
 
 # Criar migration (produção)
 npx prisma migrate dev --name nome_da_migration
