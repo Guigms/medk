@@ -30,32 +30,48 @@ Site profissional desenvolvido com Next.js 16, focado em facilitar o atendimento
 - **Framework**: Next.js 16.1.6 com App Router
 - **Linguagem**: TypeScript
 - **Estilização**: Tailwind CSS 4
-- **Banco de Dados**: Dados mockados (preparado para Prisma + MySQL)
+- **Banco de Dados**: MySQL + Prisma ORM
 - **Deploy**: Vercel ready
 
 ## 🚀 Como Executar
 
 ### Desenvolvimento:
 
-\`\`\`bash
+```bash
 # Instalar dependências
-yarn install
+npm install
 
 # Executar em modo desenvolvimento
-yarn dev
+npm run dev
 
 # Acessar em http://localhost:3000
-\`\`\`
+```
 
 ### Produção:
 
-\`\`\`bash
+```bash
 # Build
-yarn build
+npm run build
 
 # Iniciar
-yarn start
-\`\`\`
+npm start
+```
+
+### Banco de Dados:
+
+```bash
+# Gerar cliente Prisma
+npm run prisma:generate
+
+# Criar banco e tabelas
+npm run prisma:push
+
+# Popular com dados iniciais
+npm run prisma:seed
+
+# Abrir Prisma Studio
+npm run prisma:studio
+```
 
 ## 📁 Estrutura do Projeto
 
