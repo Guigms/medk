@@ -50,6 +50,7 @@ model Category {
 model Product {
   id                   String   @id @default(cuid())
   name                 String
+  brand                String?  // Marca do produto
   description          String   @db.Text
   price                Decimal  @db.Decimal(10, 2)
   image                String
@@ -67,9 +68,30 @@ model Product {
   favorites    Favorite[]
   orderItems   OrderItem[]
   productClick ProductClick[]
+  batches      Batch[]        // Lotes do produto
 
   @@index([categoryId])
   @@map("products")
+}
+
+// Modelo de Lote (para controle de validade)
+model Batch {
+  id           String   @id @default(cuid())
+  productId    String
+  batchNumber  String
+  quantity     Int
+  expiryDate   DateTime
+  purchaseDate DateTime
+  cost         Decimal  @db.Decimal(10, 2)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([expiryDate])
+  @@map("batches")
 }
 
 // Modelo de Banner Promocional
