@@ -20,8 +20,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  favorites Favorite[]
-  orders    Order[]
+  favorites     Favorite[]
+  orders        Order[]
+  loyaltyPoints LoyaltyPoints?
+  reminders     Reminder[]
 
   @@map("users")
 }
