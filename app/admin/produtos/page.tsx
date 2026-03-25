@@ -70,6 +70,9 @@ export default function ProdutosAdminPage() {
                   Gerenciar Produtos
                 </h1>
               </div>
+              <Link href="/admin/produtos/novo" className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                Cadastrar Produto
+              </Link>
               <button
                 onClick={() => logout()}
                 className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
