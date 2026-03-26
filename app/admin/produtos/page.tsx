@@ -70,21 +70,29 @@ export default function ProdutosAdminPage() {
                   Gerenciar Produtos
                 </h1>
               </div>
-              <Link href="/admin/produtos/novo" className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
-                Cadastrar Produto
-              </Link>
-              <button
-                onClick={() => logout()}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Sair
-              </button>
+              
+              {/* Grupo de Botões do Header */}
+              <div className="flex items-center gap-4">
+                <Link 
+                  href="/admin/produtos/novo"
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-bold flex items-center gap-2 shadow-sm"
+                >
+                  <span className="text-lg">＋</span> Novo Produto
+                </Link>
+                <button
+                  onClick={() => logout()}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
+                >
+                  Sair
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
+          {/* ... restante do código permanece igual ... */}
           {/* Filters */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

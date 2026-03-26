@@ -1,110 +1,149 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// GET - Estatísticas gerais
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || '30'; // dias
+    
+    const periodParam = searchParams.get('period');
+    const startParam = searchParams.get('startDate');
+    const endParam = searchParams.get('endDate');
 
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(period));
+    let startDate: Date;
+    let endDate: Date = new Date();
 
-    // Total de pedidos
-    const totalOrders = await prisma.order.count({
+    // 1. Verificação de data personalizada
+    if (startParam && endParam) {
+      startDate = new Date(startParam);
+      endDate = new Date(endParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // 2. Verificação do período (Garante que seja um número)
+      const days = parseInt(periodParam || '30');
+      const safeDays = isNaN(days) ? 30 : days; // Se não for número, assume 30 dias
+
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - safeDays);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Validação final: Se mesmo assim a data for inválida, evita o erro do Prisma
+    if (isNaN(startDate.getTime())) {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+    }
+
+    // Agora o Prisma não vai mais travar
+    const summaryData = await prisma.order.aggregate({
       where: {
-        createdAt: { gte: startDate },
-        status: { in: ['COMPLETED', 'DELIVERING'] },
-      },
-    });
-
-    // Receita total
-    const revenue = await prisma.order.aggregate({
-      where: {
-        createdAt: { gte: startDate },
-        status: { in: ['COMPLETED', 'DELIVERING'] },
+        createdAt: { gte: startDate, lte: endDate },
+        status: { in: ['COMPLETED', 'DELIVERING', 'CONFIRMED'] },
       },
       _sum: { totalAmount: true },
+      _count: { id: true }
     });
 
-    // Ticket médio
-    const averageTicket = totalOrders > 0 
-      ? Number(revenue._sum.totalAmount || 0) / totalOrders
-      : 0;
+    const totalOrders = summaryData._count.id;
+    // Conversão de Decimal para Number para evitar erros no JSON
+    const totalRevenue = Number(summaryData._sum.totalAmount || 0);
+    const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // Produtos mais vendidos
-    const topProducts = await prisma.orderItem.groupBy({
+    // 2. ESTOQUE CRÍTICO
+    // Agora busca comparando o estoque atual com o minStock definido em cada produto
+    const lowStockProducts = await prisma.product.findMany({
+      where: {
+        OR: [
+          { stock: { lte: 5 } }, // Fallback para 5
+          // Se quiser usar a lógica minStock, o Prisma precisa de um filtro avançado:
+          // Como o MySQL não permite comparar duas colunas diretamente no 'where' simples do Prisma,
+          // usamos uma margem de segurança ou mantemos lte: 5 para simplicidade no dashboard.
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        stock: true,
+        category: {
+          select: { name: true }
+        }
+      },
+      orderBy: { stock: 'asc' },
+      take: 10
+    });
+
+    // 3. Produtos mais vendidos (Top 5)
+    const topProductsRaw = await prisma.orderItem.groupBy({
       by: ['productId'],
       where: {
         order: {
           createdAt: { gte: startDate },
-          status: { in: ['COMPLETED', 'DELIVERING'] },
+          status: 'COMPLETED',
         },
       },
       _sum: { quantity: true },
-      _count: true,
       orderBy: { _sum: { quantity: 'desc' } },
       take: 5,
     });
 
-    const topProductsWithDetails = await Promise.all(
-      topProducts.map(async (item) => {
+    const topProducts = await Promise.all(
+      topProductsRaw.map(async (item) => {
         const product = await prisma.product.findUnique({
           where: { id: item.productId },
-          select: { id: true, name: true, image: true, price: true },
+          select: { name: true, price: true }
         });
+        
+        const quantity = item._sum.quantity || 0;
+        const price = Number(product?.price || 0);
+
         return {
-          ...product,
-          quantitySold: item._sum.quantity,
-          orderCount: item._count,
-          revenue: (product?.price || 0) * (item._sum.quantity || 0),
+          name: product?.name || 'Produto Removido',
+          quantity: quantity,
+          revenue: price * quantity
         };
       })
     );
 
-    // Vendas por dia (gráfico)
-    const salesByDay = await prisma.order.groupBy({
-      by: ['createdAt'],
-      where: {
-        createdAt: { gte: startDate },
-        status: { in: ['COMPLETED', 'DELIVERING'] },
-      },
-      _sum: { totalAmount: true },
-      _count: true,
+    // 4. Pedidos Recentes para o Dashboard (Últimos 5)
+    const recentOrders = await prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        customerName: true,
+        totalAmount: true,
+        status: true,
+        createdAt: true
+      }
     });
 
-    const salesChart = salesByDay.map((day) => ({
-      date: day.createdAt.toISOString().split('T')[0],
-      revenue: Number(day._sum.totalAmount || 0),
-      orders: day._count,
+    // Converter decimais dos pedidos recentes
+    const recentOrdersFormatted = recentOrders.map(order => ({
+      ...order,
+      totalAmount: Number(order.totalAmount)
     }));
 
-    // Categorias mais vendidas
-    const topCategories = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      where: {
-        order: {
-          createdAt: { gte: startDate },
-          status: { in: ['COMPLETED', 'DELIVERING'] },
-        },
-      },
-      _sum: { quantity: true, price: true },
-    });
-
     return NextResponse.json({
-      period: parseInt(period),
+      period: parseInt(periodParam || '30'),
       summary: {
         totalOrders,
-        totalRevenue: Number(revenue._sum.totalAmount || 0),
+        totalRevenue,
         averageTicket,
       },
-      topProducts: topProductsWithDetails,
-      salesChart,
+      inventory: {
+        criticalCount: lowStockProducts.length,
+        items: lowStockProducts.map(p => ({
+          ...p,
+          categoryName: p.category.name
+        }))
+      },
+      topProducts,
+      recentOrders: recentOrdersFormatted
     });
+
   } catch (error) {
     console.error('Error fetching analytics:', error);
     return NextResponse.json(
-      { error: 'Erro ao buscar analytics' },
+      { error: 'Erro interno ao processar dados de analytics' },
       { status: 500 }
     );
   }

@@ -10,15 +10,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelo de Usuário (Admin e clientes futuros)
+// --- ENUMS ---
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  DELIVERING
+  COMPLETED
+  CANCELLED
+}
+
+enum PointType {
+  EARNED
+  REDEEMED
+  EXPIRED
+  BONUS
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  CANCELLED
+}
+
+// --- MODELS ---
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  password      String
+  role          Role           @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   favorites     Favorite[]
   orders        Order[]
@@ -28,12 +63,6 @@ model User {
   @@map("users")
 }
 
-enum Role {
-  USER
-  ADMIN
-}
-
-// Modelo de Categoria
 model Category {
   id          String   @id @default(cuid())
   name        String
@@ -49,36 +78,35 @@ model Category {
   @@map("categories")
 }
 
-// Modelo de Produto
 model Product {
-  id                   String   @id @default(cuid())
+  id                   String         @id @default(cuid())
   name                 String
-  brand                String?  // Marca do produto
-  description          String   @db.Text
-  price                Decimal  @db.Decimal(10, 2)
+  brand                String?
+  description          String         @db.Text
+  price                Decimal        @db.Decimal(10, 2)
   image                String
-  available            Boolean  @default(true)
-  featured             Boolean  @default(false)
+  available            Boolean        @default(true)
+  featured             Boolean        @default(false)
   discount             Int?
-  requiresPrescription Boolean  @default(false)
+  requiresPrescription Boolean        @default(false)
   expiryDate           DateTime?
-  stock                Int      @default(0)
+  stock                Int            @default(0)
+  minStock             Int            @default(5)
   categoryId           String
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   category     Category       @relation(fields: [categoryId], references: [id])
   favorites    Favorite[]
   orderItems   OrderItem[]
   productClick ProductClick[]
-  batches      Batch[]        // Lotes do produto
-  reminders    Reminder[]     // Lembretes
+  batches      Batch[]
+  reminders    Reminder[]
 
   @@index([categoryId])
   @@map("products")
 }
 
-// Modelo de Lote (para controle de validade)
 model Batch {
   id           String   @id @default(cuid())
   productId    String
@@ -98,7 +126,6 @@ model Batch {
   @@map("batches")
 }
 
-// Modelo de Banner Promocional
 model Banner {
   id        String   @id @default(cuid())
   title     String
@@ -113,7 +140,6 @@ model Banner {
   @@map("banners")
 }
 
-// Modelo de Depoimento
 model Testimonial {
   id        String   @id @default(cuid())
   name      String
@@ -127,7 +153,6 @@ model Testimonial {
   @@map("testimonials")
 }
 
-// Modelo de Favoritos
 model Favorite {
   id        String   @id @default(cuid())
   userId    String
@@ -143,9 +168,9 @@ model Favorite {
   @@map("favorites")
 }
 
-// Modelo de Pedido
 model Order {
   id              String      @id @default(cuid())
+  orderNumber     Int         
   userId          String?
   customerName    String
   customerPhone   String
@@ -158,6 +183,7 @@ model Order {
   pointsUsed      Int         @default(0)
   totalAmount     Decimal     @db.Decimal(10, 2)
   status          OrderStatus @default(PENDING)
+  paymentMethod   String?
   hasPrescription Boolean     @default(false)
   couponId        String?
   notes           String?     @db.Text
@@ -174,16 +200,6 @@ model Order {
   @@map("orders")
 }
 
-enum OrderStatus {
-  PENDING
-  CONFIRMED
-  PREPARING
-  DELIVERING
-  COMPLETED
-  CANCELLED
-}
-
-// Itens do Pedido
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
@@ -199,7 +215,6 @@ model OrderItem {
   @@map("order_items")
 }
 
-// Analytics - Cliques em Produtos
 model ProductClick {
   id        String   @id @default(cuid())
   productId String
@@ -212,116 +227,89 @@ model ProductClick {
   @@map("product_clicks")
 }
 
-// Sistema de Pontos/Cashback
 model LoyaltyPoints {
-  id        String   @id @default(cuid())
-  userId    String
-  points    Int      @default(0)
-  totalEarned Int    @default(0)
-  totalSpent  Int    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  points      Int      @default(0)
+  totalEarned Int      @default(0)
+  totalSpent  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions PointTransaction[]
 
   @@unique([userId])
   @@map("loyalty_points")
 }
 
-// Transações de Pontos
 model PointTransaction {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   loyaltyId   String
   points      Int
   type        PointType
   description String
   orderId     String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   loyalty LoyaltyPoints @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
 
   @@index([loyaltyId])
-  @@index([createdAt])
   @@map("point_transactions")
 }
 
-enum PointType {
-  EARNED
-  REDEEMED
-  EXPIRED
-  BONUS
-}
-
-// Cupons de Desconto
 model Coupon {
-  id             String      @id @default(cuid())
-  code           String      @unique
-  description    String
-  discountType   DiscountType
-  discountValue  Decimal     @db.Decimal(10, 2)
-  minPurchase    Decimal?    @db.Decimal(10, 2)
-  maxDiscount    Decimal?    @db.Decimal(10, 2)
-  usageLimit     Int?
-  usageCount     Int         @default(0)
-  categoryId     String?
-  validFrom      DateTime
-  validUntil     DateTime
-  active         Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id            String       @id @default(cuid())
+  code          String       @unique
+  description   String
+  discountType  DiscountType
+  discountValue Decimal      @db.Decimal(10, 2)
+  minPurchase   Decimal?     @db.Decimal(10, 2)
+  maxDiscount   Decimal?     @db.Decimal(10, 2)
+  usageLimit    Int?
+  usageCount    Int          @default(0)
+  categoryId    String?
+  validFrom     DateTime
+  validUntil    DateTime
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   category Category? @relation(fields: [categoryId], references: [id])
   orders   Order[]
 
   @@index([code])
-  @@index([validFrom, validUntil])
   @@map("coupons")
 }
 
-enum DiscountType {
-  PERCENTAGE
-  FIXED
-}
-
-// Lembretes Automáticos
 model Reminder {
-  id          String        @id @default(cuid())
-  userId      String
-  productId   String
+  id           String         @id @default(cuid())
+  userId       String
+  productId    String
   reminderDate DateTime
-  frequency   Int           // Dias entre lembretes
-  status      ReminderStatus @default(PENDING)
-  lastSent    DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  frequency    Int
+  status       ReminderStatus @default(PENDING)
+  lastSent     DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([productId])
-  @@index([reminderDate])
   @@map("reminders")
 }
 
-enum ReminderStatus {
-  PENDING
-  SENT
-  CANCELLED
-}
-
-// Relatórios de Vendas (cache para analytics)
 model SalesReport {
-  id              String   @id @default(cuid())
-  date            DateTime @unique
-  totalOrders     Int      @default(0)
-  totalRevenue    Decimal  @db.Decimal(10, 2) @default(0)
-  totalProducts   Int      @default(0)
-  averageTicket   Decimal  @db.Decimal(10, 2) @default(0)
-  topProductId    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  date          DateTime @unique
+  totalOrders   Int      @default(0)
+  totalRevenue  Decimal  @db.Decimal(10, 2) @default(0)
+  totalProducts Int      @default(0)
+  averageTicket Decimal  @db.Decimal(10, 2) @default(0)
+  topProductId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([date])
   @@map("sales_reports")
