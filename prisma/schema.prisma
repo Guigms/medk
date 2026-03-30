@@ -189,6 +189,7 @@ model Order {
   notes           String?     @db.Text
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  observation     String?
 
   user       User?       @relation(fields: [userId], references: [id])
   coupon     Coupon?     @relation(fields: [couponId], references: [id])

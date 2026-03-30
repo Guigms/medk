@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 
 export async function GET() {
-  const orders = await prisma.order.findMany({
-    include: { orderItems: true },
-    orderBy: { createdAt: 'desc' }
-  });
-  return NextResponse.json(orders);
-}
+  try {
+    const orders = await prisma.order.findMany({
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                name: true,
+                image: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc' // Pedidos novos aparecem no topo
+      }
+    });
 
-export async function PATCH(req: Request) {
-  const { orderId, status } = await req.json();
-  const updatedOrder = await prisma.order.update({
-    where: { id: orderId },
-    data: { status }
-  });
-  return NextResponse.json(updatedOrder);
+    return NextResponse.json(orders);
+  } catch (error) {
+    console.error("Erro ao buscar pedidos:", error);
+    return NextResponse.json({ error: "Erro ao carregar pedidos" }, { status: 500 });
+  }
 }
