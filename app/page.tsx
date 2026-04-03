@@ -1,16 +1,75 @@
 import SearchBar from '@/components/SearchBar';
 import ProductCard from '@/components/ProductCard';
-import { products, categories, services, testimonials, banners } from '@/lib/mockData';
 import Link from 'next/link';
 import Image from 'next/image';
+import prisma from '@/lib/prisma';
 
-export default function Home() {
-  const featuredProducts = products.filter(p => p.featured && p.available);
-  const activeBanner = banners.find(b => b.active) || banners[0];
+// 🔥 Mapper profissional (resolve TODOS os problemas de tipagem)
+function mapProduct(p: any) {
+  return {
+    ...p,
+    price: Number(p.price),
+
+    // Converte relação para string (id)
+    category: p.category?.id,
+
+    // Normaliza null → undefined
+    discount: p.discount ?? undefined,
+    brand: p.brand ?? undefined,
+
+    // 🚨 CORREÇÃO PRINCIPAL
+    expiryDate: p.expiryDate
+      ? new Date(p.expiryDate).toISOString()
+      : undefined,
+  };
+}
+
+export default async function Home() {
+  // 1. Buscar Banners ativos do banco
+  const banners = await prisma.banner.findMany({
+    where: { active: true },
+    orderBy: { order: 'asc' }
+  });
+
+  // 2. Buscar Categorias do banco
+  const categories = await prisma.category.findMany();
+
+  // 3. Buscar Produtos em Destaque do banco
+  const featuredProductsRaw = await prisma.product.findMany({
+    where: { 
+      featured: true,
+      available: true 
+    },
+    include: { category: true },
+    take: 4
+  });
+
+  // 🔥 Aplicando mapper (SOLUÇÃO)
+  const featuredProducts = featuredProductsRaw.map(mapProduct);
+
+  // 4. Buscar Depoimentos ativos
+  const testimonials = await prisma.testimonial.findMany({
+    where: { active: true },
+    take: 4
+  });
+
+  // Banner padrão caso não haja nenhum no banco
+  const activeBanner = banners[0] || {
+    title: 'Sua saúde em boas mãos',
+    subtitle: 'Atendimento de qualidade no Passaré',
+    image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200'
+  };
+
+  const services = [
+    { id: 1, icon: '💊', title: 'Medicamentos', description: 'Amplo estoque de genéricos e similares' },
+    { id: 2, icon: '💉', title: 'Aplicações', description: 'Profissionais qualificados para injetáveis' },
+    { id: 3, icon: '🩺', title: 'Aferição', description: 'Pressão arterial e glicemia capilar' },
+    { id: 4, icon: '🚚', title: 'Entrega Rápida', description: 'Receba no conforto da sua casa' },
+  ];
 
   return (
     <div>
-      {/* Hero Section with Banner */}
+      {/* Hero */}
       <section className="relative h-[500px] md:h-[600px] bg-gradient-to-r from-[#253289] to-[#10BCEC]">
         <div className="absolute inset-0">
           <Image
@@ -22,30 +81,33 @@ export default function Home() {
             sizes="100vw"
           />
         </div>
+
         <div className="relative container mx-auto px-4 h-full flex flex-col justify-center items-center text-center text-white">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4" data-testid="hero-title">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">
             {activeBanner.title}
           </h1>
+
           <p className="text-xl md:text-2xl mb-8 max-w-2xl">
             {activeBanner.subtitle}
           </p>
+
           <div className="w-full max-w-2xl">
             <SearchBar />
           </div>
+
           <div className="flex flex-wrap gap-4 mt-8 justify-center">
             <a
-              href="https://wa.me/5585213967 83"
+              href="https://wa.me/558521396783"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-[#25D366] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#1ebe57] transition-colors"
-              data-testid="hero-whatsapp-button"
+              className="bg-[#25D366] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#1ebe57]"
             >
               💬 Fale Conosco
             </a>
+
             <Link
               href="/produtos"
-              className="bg-[#E5202A] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#c41a24] transition-colors border-2 border-white"
-              data-testid="hero-products-button"
+              className="bg-[#E5202A] text-white px-8 py-3 rounded-lg font-bold border-2 border-white"
             >
               Ver Produtos
             </Link>
@@ -53,24 +115,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories Section */}
+      {/* Categorias */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-900">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
             Nossas Categorias
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {categories.map((category) => (
               <Link
                 key={category.id}
                 href={`/produtos?categoria=${category.slug}`}
-                className="bg-gradient-to-br from-[#10BCEC] from-10% to-[#253289] p-6 rounded-xl hover:shadow-lg transition-all hover:scale-105 text-center group"
-                data-testid={`category-${category.slug}`}
+                className="bg-gradient-to-br from-[#10BCEC] to-[#253289] p-6 rounded-xl text-center"
               >
                 <div className="text-5xl mb-3">{category.icon}</div>
-                <h3 className="font-bold text-lg mb-2 text-white group-hover:text-gray-100 transition-colors">
-                  {category.name}
-                </h3>
+                <h3 className="font-bold text-white">{category.name}</h3>
                 <p className="text-sm text-gray-100">{category.description}</p>
               </Link>
             ))}
@@ -78,23 +138,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products */}
+      {/* Produtos */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+          <div className="flex justify-between mb-12">
+            <h2 className="text-3xl font-bold">
               ⭐ Produtos em Destaque
             </h2>
-            <Link
-              href="/produtos"
-              className="text-[#253289] hover:text-[#10BCEC] font-medium flex items-center gap-2"
-            >
+
+            <Link href="/produtos">
               Ver todos
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
             </Link>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -103,79 +159,36 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Services Section */}
+      {/* Serviços */}
       <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-900">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-12">
             Nossos Serviços
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          <div className="grid md:grid-cols-4 gap-6">
             {services.map((service) => (
-              <div
-                key={service.id}
-                className="bg-green-50 p-6 rounded-xl hover:shadow-lg transition-shadow text-center"
-                data-testid={`service-${service.id}`}
-              >
-                <div className="text-5xl mb-4">{service.icon}</div>
-                <h3 className="font-bold text-lg mb-2 text-gray-900">{service.title}</h3>
-                <p className="text-gray-600 text-sm">{service.description}</p>
+              <div key={service.id} className="bg-green-50 p-6 rounded-xl">
+                <div className="text-5xl">{service.icon}</div>
+                <h3 className="font-bold mt-4">{service.title}</h3>
+                <p className="text-sm">{service.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Social Proof / Testimonials */}
-      <section className="py-16 bg-gradient-to-br from-[#253289] to-[#10BCEC] text-white">
+      {/* Depoimentos */}
+      <section className="py-16 bg-blue-900 text-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <span className="text-6xl">⭐</span>
-              <div>
-                <div className="text-5xl font-bold">5.0</div>
-                <div className="text-xl">Avaliação no Google</div>
-              </div>
-            </div>
-            <p className="text-xl">Veja o que nossos clientes dizem sobre nós</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {testimonials.map((testimonial) => (
-              <div
-                key={testimonial.id}
-                className="bg-white text-gray-900 p-6 rounded-xl shadow-lg"
-                data-testid={`testimonial-${testimonial.id}`}
-              >
-                <div className="flex items-center gap-1 mb-3">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <span key={i} className="text-yellow-400 text-xl">⭐</span>
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-4 italic">"{testimonial.comment}"</p>
-                <div className="font-bold text-green-600">{testimonial.name}</div>
+          <div className="grid md:grid-cols-4 gap-6">
+            {testimonials.map((t) => (
+              <div key={t.id} className="bg-white text-black p-6 rounded-xl">
+                <p>"{t.comment}"</p>
+                <strong>{t.name}</strong>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 bg-gray-900 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Pronto para cuidar da sua saúde?
-          </h2>
-          <p className="text-xl mb-8 text-gray-300">
-            Entre em contato conosco pelo WhatsApp e faça seu pedido agora mesmo!
-          </p>
-          <a
-            href="https://wa.me/5585213967 83"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block bg-[#25D366] text-white px-12 py-4 rounded-lg font-bold text-lg hover:bg-[#1ebe57] transition-colors"
-            data-testid="cta-whatsapp-button"
-          >
-            💬 Falar no WhatsApp
-          </a>
         </div>
       </section>
     </div>

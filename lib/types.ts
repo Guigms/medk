@@ -3,15 +3,19 @@
 export interface Product {
   id: string;
   name: string;
-  category: string;
+  categoryId?: string | null; 
+  category?: any; 
   price: number;
   description: string;
   image: string;
   available: boolean;
   featured?: boolean;
-  discount?: number;
+  discount?: number | null;
   requiresPrescription?: boolean;
-  expiryDate?: string;
+  expiryDate?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  
   clicks?: number;
 }
 

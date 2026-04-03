@@ -1,28 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// GET - Listar todos os produtos
+// GET - Listar todos os produtos (com filtros de busca e categoria)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const search = searchParams.get('search');
+    
+    // Sincronizando os nomes dos parâmetros com os componentes (SearchBar usa 'q')
+    const category = searchParams.get('category') || searchParams.get('categoria');
+    const searchTerm = searchParams.get('q') || searchParams.get('search'); 
     const featured = searchParams.get('featured');
 
-    const where: any = {};
+    const where: any = {
+      available: true // Por padrão, só mostra o que está disponível no site
+    };
 
+    // Se houver busca por categoria
     if (category) {
       where.category = { slug: category };
     }
 
-    if (search) {
+    // Lógica de busca textual corrigida
+    if (searchTerm) {
       where.OR = [
-        { name: { contains: search } },
-        { description: { contains: search } },
-        { brand: { contains: search } },
+        { name: { contains: searchTerm } },
+        { description: { contains: searchTerm } },
+        { brand: { contains: searchTerm } },
       ];
     }
 
+    // Filtro de destaques
     if (featured === 'true') {
       where.featured = true;
     }
@@ -31,15 +38,17 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         category: true,
-        batches: {
-          orderBy: { expiryDate: 'asc' },
-          take: 1,
-        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json(products);
+    // Converte Decimal para Number para evitar erros no Frontend
+    const serializedProducts = products.map(p => ({
+      ...p,
+      price: Number(p.price)
+    }));
+
+    return NextResponse.json(serializedProducts);
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json(
