@@ -25,6 +25,7 @@ interface ProductFormData {
   discount: string;
   requiresPrescription: boolean;
   stock: string;
+  barcode: string; // <-- Campo adicionado
 }
 
 const INITIAL_FORM_STATE: ProductFormData = {
@@ -39,6 +40,7 @@ const INITIAL_FORM_STATE: ProductFormData = {
   discount: '',
   requiresPrescription: false,
   stock: '',
+  barcode: '', // <-- Campo adicionado
 };
 
 export default function NovoProductPage() {
@@ -91,6 +93,7 @@ export default function NovoProductPage() {
           ...formData,
           price: priceValue,
           brand: formData.brand || null,
+          barcode: formData.barcode || null, // <-- Envia o código de barras ou null
           discount: formData.discount ? parseInt(formData.discount) : null,
           stock: formData.stock ? parseInt(formData.stock) : 0,
         }),
@@ -98,7 +101,7 @@ export default function NovoProductPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao criar produto');
+        throw new Error(errorData.message || errorData.error || 'Erro ao criar produto');
       }
 
       setSuccess('Produto criado com sucesso! Redirecionando...');
@@ -170,6 +173,24 @@ export default function NovoProductPage() {
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Código de Barras (Novo Campo adicionado primeiro para agilidade) */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="barcode" className="block text-sm font-medium text-gray-700 mb-1">Código de Barras (EAN/GTIN)</label>
+                    <div className="relative">
+                      <input
+                        id="barcode"
+                        type="text"
+                        value={formData.barcode}
+                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 font-mono tracking-wider pl-10"
+                        placeholder="Aponte o leitor ou digite o código numérico"
+                        autoFocus // Ajuda o usuário a já bipar direto ao abrir a página
+                      />
+                      <span className="absolute left-3 top-2.5 text-gray-400 font-black">
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="md:col-span-2">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
                     <input

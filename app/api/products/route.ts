@@ -20,12 +20,13 @@ export async function GET(request: NextRequest) {
       where.category = { slug: category };
     }
 
-    // Lógica de busca textual corrigida
+    // Lógica de busca textual corrigida (AGORA COM CÓDIGO DE BARRAS)
     if (searchTerm) {
       where.OR = [
         { name: { contains: searchTerm } },
         { description: { contains: searchTerm } },
         { brand: { contains: searchTerm } },
+        { barcode: { equals: searchTerm } }, // 👈 Adicionamos a busca exata pelo código de barras
       ];
     }
 
@@ -66,15 +67,16 @@ export async function POST(request: NextRequest) {
     const product = await prisma.product.create({
       data: {
         name: body.name,
-        brand: body.brand,
+        brand: body.brand || null,
+        barcode: body.barcode || null, // Garante que salve null se vier vazio
         description: body.description,
-        price: body.price,
+        price: Number(body.price), // Segurança para o Prisma (Decimal)
         image: body.image,
         available: body.available ?? true,
         featured: body.featured ?? false,
         discount: body.discount,
         requiresPrescription: body.requiresPrescription ?? false,
-        stock: body.stock ?? 0,
+        stock: body.stock ? Number(body.stock) : 0,
         categoryId: body.categoryId,
       },
       include: {

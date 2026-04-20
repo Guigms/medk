@@ -4,6 +4,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import prisma from '@/lib/prisma';
 
+// 1. O SEGREDO DO TEMPO REAL: Desliga o cache estático para a Home sempre atualizar
+export const dynamic = 'force-dynamic';
+
 // 🔥 Mapper profissional (resolve TODOS os problemas de tipagem)
 function mapProduct(p: any) {
   return {
@@ -25,33 +28,29 @@ function mapProduct(p: any) {
 }
 
 export default async function Home() {
-  // 1. Buscar Banners ativos do banco
-  const banners = await prisma.banner.findMany({
-    where: { active: true },
-    orderBy: { order: 'asc' }
-  });
-
-  // 2. Buscar Categorias do banco
-  const categories = await prisma.category.findMany();
-
-  // 3. Buscar Produtos em Destaque do banco
-  const featuredProductsRaw = await prisma.product.findMany({
-    where: { 
-      featured: true,
-      available: true 
-    },
-    include: { category: true },
-    take: 4
-  });
+  // Executa todas as buscas em paralelo para deixar a página mais rápida
+  const [banners, categories, featuredProductsRaw, testimonials] = await Promise.all([
+    prisma.banner.findMany({
+      where: { active: true },
+      orderBy: { order: 'asc' }
+    }),
+    prisma.category.findMany(),
+    prisma.product.findMany({
+      where: { 
+        featured: true,
+        available: true 
+      },
+      include: { category: true },
+      take: 8 // Aumentei para 8 para preencher melhor a tela (2 linhas)
+    }),
+    prisma.testimonial.findMany({
+      where: { active: true },
+      take: 4
+    })
+  ]);
 
   // 🔥 Aplicando mapper (SOLUÇÃO)
   const featuredProducts = featuredProductsRaw.map(mapProduct);
-
-  // 4. Buscar Depoimentos ativos
-  const testimonials = await prisma.testimonial.findMany({
-    where: { active: true },
-    take: 4
-  });
 
   // Banner padrão caso não haja nenhum no banco
   const activeBanner = banners[0] || {
@@ -100,14 +99,14 @@ export default async function Home() {
               href="https://wa.me/558521396783"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-[#25D366] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#1ebe57]"
+              className="bg-[#25D366] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#1ebe57] transition-colors"
             >
               💬 Fale Conosco
             </a>
 
             <Link
               href="/produtos"
-              className="bg-[#E5202A] text-white px-8 py-3 rounded-lg font-bold border-2 border-white"
+              className="bg-[#E5202A] text-white px-8 py-3 rounded-lg font-bold border-2 border-white hover:bg-[#c41a24] transition-colors"
             >
               Ver Produtos
             </Link>
@@ -118,20 +117,20 @@ export default async function Home() {
       {/* Categorias */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-[#253289]">
             Nossas Categorias
           </h2>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {categories.map((category) => (
               <Link
                 key={category.id}
                 href={`/produtos?categoria=${category.slug}`}
-                className="bg-gradient-to-br from-[#10BCEC] to-[#253289] p-6 rounded-xl text-center"
+                className="bg-gradient-to-br from-[#10BCEC] to-[#253289] p-6 rounded-xl hover:shadow-lg transition-all hover:scale-105 text-center group"
               >
-                <div className="text-5xl mb-3">{category.icon}</div>
-                <h3 className="font-bold text-white">{category.name}</h3>
-                <p className="text-sm text-gray-100">{category.description}</p>
+                <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">{category.icon}</div>
+                <h3 className="font-bold text-lg mb-2 text-white">{category.name}</h3>
+                <p className="text-sm text-gray-100 line-clamp-2">{category.description}</p>
               </Link>
             ))}
           </div>
@@ -141,37 +140,46 @@ export default async function Home() {
       {/* Produtos */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between mb-12">
-            <h2 className="text-3xl font-bold">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
               ⭐ Produtos em Destaque
             </h2>
 
-            <Link href="/produtos">
-              Ver todos
+            <Link
+              href="/produtos"
+              className="text-[#253289] hover:text-[#10BCEC] font-bold flex items-center gap-2 transition-colors"
+            >
+              Ver todos →
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              Nenhum produto em destaque no momento.
+            </div>
+          )}
         </div>
       </section>
 
       {/* Serviços */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-[#253289]">
             Nossos Serviços
           </h2>
 
-          <div className="grid md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service) => (
-              <div key={service.id} className="bg-green-50 p-6 rounded-xl">
-                <div className="text-5xl">{service.icon}</div>
-                <h3 className="font-bold mt-4">{service.title}</h3>
-                <p className="text-sm">{service.description}</p>
+              <div key={service.id} className="bg-[#f0f9ff] p-6 rounded-xl hover:shadow-md transition-shadow border border-blue-50">
+                <div className="text-5xl mb-4">{service.icon}</div>
+                <h3 className="font-bold text-lg text-gray-900 mt-4 mb-2">{service.title}</h3>
+                <p className="text-sm text-gray-600">{service.description}</p>
               </div>
             ))}
           </div>
@@ -179,13 +187,27 @@ export default async function Home() {
       </section>
 
       {/* Depoimentos */}
-      <section className="py-16 bg-blue-900 text-white">
+      <section className="py-16 bg-gradient-to-br from-[#253289] to-[#10BCEC] text-white">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-6">
+           <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">O que nossos clientes dizem</h2>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-4xl">⭐</span>
+              <span className="text-3xl font-bold">5.0</span>
+            </div>
+            <p className="text-lg opacity-90 mt-2">Avaliação média no Google</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {testimonials.map((t) => (
-              <div key={t.id} className="bg-white text-black p-6 rounded-xl">
-                <p>"{t.comment}"</p>
-                <strong>{t.name}</strong>
+              <div key={t.id} className="bg-white text-gray-900 p-6 rounded-xl shadow-lg">
+                 <div className="flex items-center gap-1 mb-3">
+                  {[...Array(t.rating || 5)].map((_, i) => (
+                    <span key={i} className="text-yellow-400 text-lg">⭐</span>
+                  ))}
+                </div>
+                <p className="text-gray-700 mb-4 italic line-clamp-4">"{t.comment}"</p>
+                <strong className="text-[#253289]">{t.name}</strong>
               </div>
             ))}
           </div>

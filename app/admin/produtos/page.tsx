@@ -1,59 +1,145 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import Link from 'next/link';
+import Image from 'next/image';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { products as initialProducts, categories } from '@/lib/mockData';
 import { formatPrice } from '@/lib/utils';
-import { Product } from '@/lib/types';
 
 export default function ProdutosAdminPage() {
   const { logout } = useAuth();
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // Busca inicial de Produtos e Categorias na API real
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [productsRes, categoriesRes] = await Promise.all([
+        fetch('/api/products'),
+        fetch('/api/categories') // Vamos assumir que você tem ou criará essa rota, caso contrário, avise!
+      ]);
+      const productsData = await productsRes.json();
+      const categoriesData = categoriesRes.ok ? await categoriesRes.json() : [];
+      
+      setProducts(productsData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Lógica de Filtro local
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || product.category?.slug === selectedCategory;
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  const toggleAvailability = (productId: string) => {
-    setProducts(products.map(p => 
-      p.id === productId ? { ...p, available: !p.available } : p
-    ));
+  // Toggle Disponibilidade (Conectado à API)
+  const toggleAvailability = async (productId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    // Otimista: atualiza a tela antes da resposta da API
+    setProducts(products.map(p => p.id === productId ? { ...p, available: newStatus } : p));
+    
+    try {
+      await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ available: newStatus })
+      });
+    } catch (error) {
+      // Reverte se der erro
+      setProducts(products.map(p => p.id === productId ? { ...p, available: currentStatus } : p));
+      alert("Erro ao atualizar disponibilidade.");
+    }
   };
 
-  const toggleFeatured = (productId: string) => {
-    setProducts(products.map(p => 
-      p.id === productId ? { ...p, featured: !p.featured } : p
-    ));
+  // Toggle Destaque (Conectado à API)
+  const toggleFeatured = async (productId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    setProducts(products.map(p => p.id === productId ? { ...p, featured: newStatus } : p));
+    
+    try {
+      await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ featured: newStatus })
+      });
+    } catch (error) {
+      setProducts(products.map(p => p.id === productId ? { ...p, featured: currentStatus } : p));
+      alert("Erro ao atualizar destaque.");
+    }
   };
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
+  const handleEdit = (product: any) => {
+    setEditingProduct({ ...product, categoryId: product.category?.id || '' });
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    if (editingProduct) {
-      setProducts(products.map(p => 
-        p.id === editingProduct.id ? editingProduct : p
-      ));
-      setIsModalOpen(false);
-      setEditingProduct(null);
+  // Salvar Edição (Conectado à API)
+  const handleSave = async () => {
+    if (!editingProduct) return;
+    
+    try {
+      const response = await fetch(`/api/products/${editingProduct.id}`, {
+        method: 'PUT', // ou PATCH, dependendo de como você montou a rota de edição
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingProduct.name,
+          description: editingProduct.description,
+          price: editingProduct.price,
+          discount: editingProduct.discount,
+          categoryId: editingProduct.categoryId,
+        })
+      });
+
+      if (response.ok) {
+        setIsModalOpen(false);
+        setEditingProduct(null);
+        fetchData(); // Recarrega os dados fresquinhos do banco
+      } else {
+        alert("Erro ao salvar produto.");
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  const handleDelete = (productId: string) => {
-    if (confirm('Tem certeza que deseja excluir este produto?')) {
-      setProducts(products.filter(p => p.id !== productId));
+  // Excluir Produto (Conectado à API)
+  const handleDelete = async (productId: string) => {
+    if (confirm('Tem certeza que deseja excluir este produto do banco de dados?')) {
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setProducts(products.filter(p => p.id !== productId));
+        } else {
+           alert("Erro: O produto não pode ser excluído. Pode estar vinculado a um pedido existente.");
+        }
+      } catch (error) {
+        console.error("Erro ao deletar:", error);
+      }
     }
   };
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-100 p-8 text-center text-[#253289] font-bold">Carregando painel de produtos...</div>;
+  }
 
   return (
     <ProtectedRoute>
@@ -63,7 +149,7 @@ export default function ProdutosAdminPage() {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <Link href="/admin/dashboard" className="text-green-600 hover:text-green-700 text-sm mb-1 inline-block">
+                <Link href="/admin/dashboard" className="text-[#253289] hover:text-[#1a2461] text-sm mb-1 inline-block">
                   ← Voltar ao Dashboard
                 </Link>
                 <h1 className="text-2xl font-bold text-gray-900">
@@ -71,11 +157,10 @@ export default function ProdutosAdminPage() {
                 </h1>
               </div>
               
-              {/* Grupo de Botões do Header */}
               <div className="flex items-center gap-4">
                 <Link 
                   href="/admin/produtos/novo"
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-bold flex items-center gap-2 shadow-sm"
+                  className="bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#1ebe57] transition-colors font-bold flex items-center gap-2 shadow-sm"
                 >
                   <span className="text-lg">＋</span> Novo Produto
                 </Link>
@@ -92,32 +177,25 @@ export default function ProdutosAdminPage() {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
-          {/* ... restante do código permanece igual ... */}
           {/* Filters */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Buscar Produto
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Buscar Produto</label>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Digite o nome do produto..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                  data-testid="admin-search-input"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] text-gray-900"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Filtrar por Categoria
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Filtrar por Categoria</label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                  data-testid="admin-category-filter"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] text-gray-900"
                 >
                   <option value="all">Todas as Categorias</option>
                   {categories.map((category) => (
@@ -134,7 +212,7 @@ export default function ProdutosAdminPage() {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left py-4 px-4 text-gray-600 font-medium">Produto</th>
                     <th className="text-left py-4 px-4 text-gray-600 font-medium">Categoria</th>
@@ -144,67 +222,68 @@ export default function ProdutosAdminPage() {
                     <th className="text-center py-4 px-4 text-gray-600 font-medium">Ações</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {filteredProducts.map((product) => (
-                    <tr key={product.id} className="border-b hover:bg-gray-50" data-testid={`admin-product-row-${product.id}`}>
+                    <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-4 px-4">
-                        <div>
-                          <div className="font-medium text-gray-900">{product.name}</div>
-                          <div className="text-sm text-gray-500 line-clamp-1">{product.description}</div>
+                        <div className="flex items-center gap-3">
+                          {product.image && (
+                            <div className="w-10 h-10 rounded bg-gray-100 overflow-hidden relative flex-shrink-0">
+                               <img src={product.image} alt="" className="object-cover w-full h-full" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-bold text-gray-900">{product.name}</div>
+                            {product.requiresPrescription && (
+                              <span className="text-[10px] bg-red-100 text-red-700 px-2 rounded-full font-bold">Rx - Receita</span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-gray-600">
-                        {categories.find(c => c.slug === product.category)?.name}
+                        {product.category?.name || 'Sem Categoria'}
                       </td>
-                      <td className="py-4 px-4 text-gray-900 font-medium">
-                        {formatPrice(product.price)}
-                        {product.discount && (
-                          <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                      <td className="py-4 px-4 text-[#253289] font-bold">
+                        {formatPrice(Number(product.price))}
+                        {product.discount > 0 && (
+                          <span className="ml-2 text-xs bg-red-100 text-red-700 px-1 py-0.5 rounded">
                             -{product.discount}%
                           </span>
                         )}
                       </td>
                       <td className="py-4 px-4 text-center">
                         <button
-                          onClick={() => toggleAvailability(product.id)}
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            product.available
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                          onClick={() => toggleAvailability(product.id, product.available)}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                            product.available ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'
                           }`}
-                          data-testid={`toggle-availability-${product.id}`}
                         >
-                          {product.available ? 'Sim' : 'Não'}
+                          {product.available ? 'Online' : 'Oculto'}
                         </button>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <button
-                          onClick={() => toggleFeatured(product.id)}
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            product.featured
-                              ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          onClick={() => toggleFeatured(product.id, product.featured)}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                            product.featured ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
-                          data-testid={`toggle-featured-${product.id}`}
                         >
-                          {product.featured ? '⭐ Sim' : 'Não'}
+                          {product.featured ? '⭐ Destaque' : 'Normal'}
                         </button>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEdit(product)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-sm"
-                            data-testid={`edit-product-${product.id}`}
+                            className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded hover:bg-blue-100 transition-colors text-xs font-bold border border-blue-200"
                           >
                             Editar
                           </button>
                           <button
                             onClick={() => handleDelete(product.id)}
-                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors text-sm"
-                            data-testid={`delete-product-${product.id}`}
+                            className="bg-red-50 text-red-600 px-3 py-1.5 rounded hover:bg-red-100 transition-colors text-xs font-bold border border-red-200"
                           >
-                            Excluir
+                            Deletar
                           </button>
                         </div>
                       </td>
@@ -215,79 +294,78 @@ export default function ProdutosAdminPage() {
             </div>
 
             {filteredProducts.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-4xl mb-2">🔍</div>
-                <p className="text-gray-600">Nenhum produto encontrado</p>
+              <div className="text-center py-16 bg-gray-50 text-gray-500">
+                Nenhum produto encontrado com os filtros atuais.
               </div>
             )}
           </div>
         </main>
 
-        {/* Edit Modal */}
+        {/* Modal de Edição */}
         {isModalOpen && editingProduct && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900">Editar Produto</h2>
-              <div className="space-y-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
+              <h2 className="text-2xl font-black mb-6 text-[#253289]">Editar Produto</h2>
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Nome</label>
                   <input
                     type="text"
                     value={editingProduct.name}
                     onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#253289] outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Descrição</label>
                   <textarea
                     value={editingProduct.description}
                     onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#253289] outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Preço</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Preço (R$)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={editingProduct.price}
                       onChange={(e) => setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#253289] outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Desconto (%)</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Desconto (%)</label>
                     <input
                       type="number"
                       value={editingProduct.discount || 0}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, discount: parseInt(e.target.value) || undefined })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      onChange={(e) => setEditingProduct({ ...editingProduct, discount: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#253289] outline-none"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label>
                   <select
-                    value={editingProduct.category}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                    value={editingProduct.categoryId}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, categoryId: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#253289] outline-none"
                   >
+                    <option value="">Selecione uma categoria...</option>
                     {categories.map((category) => (
-                      <option key={category.id} value={category.slug}>
+                      <option key={category.id} value={category.id}>
                         {category.name}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
-              <div className="flex gap-4 mt-6">
+              <div className="flex gap-4 mt-8">
                 <button
                   onClick={handleSave}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                  data-testid="save-product-button"
+                  className="flex-1 bg-[#253289] text-white py-3 rounded-xl hover:bg-[#1a2461] transition-colors font-bold shadow-md"
                 >
                   Salvar Alterações
                 </button>
@@ -296,7 +374,7 @@ export default function ProdutosAdminPage() {
                     setIsModalOpen(false);
                     setEditingProduct(null);
                   }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl hover:bg-gray-200 transition-colors font-bold"
                 >
                   Cancelar
                 </button>

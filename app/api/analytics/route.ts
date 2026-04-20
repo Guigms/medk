@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
     const periodParam = searchParams.get('period');
     const startParam = searchParams.get('startDate');
     const endParam = searchParams.get('endDate');
-    // NOVO: Pegando a página para os pedidos
     const page = parseInt(searchParams.get('page') || '1'); 
     const limit = 10;
     const skip = (page - 1) * limit;
@@ -49,9 +48,7 @@ export async function GET(request: NextRequest) {
     const totalRevenue = Number(summaryData._sum.totalAmount || 0);
     const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // 2. NOVO: Evolução Diária (Para o Gráfico de Linha)
-    // O Prisma não tem um "GROUP BY DATE()" nativo perfeito para MySQL, 
-    // então buscamos os pedidos e agrupamos no JavaScript.
+
     const ordersForChart = await prisma.order.findMany({
       where: {
         createdAt: { gte: startDate, lte: endDate },

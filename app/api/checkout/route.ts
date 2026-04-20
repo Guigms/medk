@@ -4,64 +4,96 @@ import prisma from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { items, customer, total } = body;
+    
+    const {
+      customer,
+      items = [],
+      deliveryOption = 'PICKUP',
+      deliveryAddress,
+      paymentMethod = 'CASH',
+      deliveryFee = 0,
+      observation,
+      changeFor,
+      source = 'ONLINE' // Padrão é online, mas o PDV enviará 'COUNTER'
+    } = body;
 
-    // 1. Validar dados básicos
-    if (!items || items.length === 0 || !customer.name || !customer.address) {
-      return NextResponse.json(
-        { error: 'Dados incompletos para o checkout' },
-        { status: 400 }
-      );
-    }
+    // 1. Verificação de Receita
+    const hasPrescription = items.some((item: any) => 
+      item.product?.requiresPrescription === true || item.requiresPrescription === true
+    );
 
-    // 2. Gerar o número do pedido (orderNumber) de forma sequencial
-    // Buscamos o maior número atual e somamos 1
-    const lastOrder = await prisma.order.findFirst({
-  orderBy: { orderNumber: 'desc' },
-  select: { orderNumber: true }
-});
+    // 2. CÁLCULO SEGURO NO BACK-END (Resolve o erro do subtotal faltando)
+    // Multiplicamos o preço de cada item pela quantidade para achar o subtotal exato
+    const calculatedSubtotal = items.reduce((acc: number, item: any) => {
+      const itemPrice = Number(item.product?.price || item.price || 0);
+      return acc + (itemPrice * (item.quantity || 1));
+    }, 0);
 
-// Forçamos o resultado a ser um número puro
-const lastNumber = lastOrder?.orderNumber ? Number(lastOrder.orderNumber) : 999;
-const nextOrderNumber = lastNumber + 1;
+    const safeDeliveryFee = Number(deliveryFee) || 0;
+    const calculatedTotal = calculatedSubtotal + safeDeliveryFee;
 
-// 3. Criar o pedido...
-// 3. Criar o pedido e os itens em uma única transação
+    // 3. Gerar Número do Pedido
+    const orderNumber = Math.floor(100000 + Math.random() * 900000);
+
+    // 4. EXECUÇÃO DA TRANSAÇÃO (Tudo ou Nada)
     const result = await prisma.$transaction(async (tx) => {
+      
+      // A. Criar o Pedido Principal
       const newOrder = await tx.order.create({
         data: {
-          orderNumber: nextOrderNumber,
-          customerName: customer.name,
-          customerPhone: customer.phone || '',
-          deliveryAddress: customer.address,
-          deliveryOption: 'WhatsApp', // Campo obrigatório no seu Schema
-          subtotal: total,           // Campo obrigatório no seu Schema
-          totalAmount: total,
-          status: 'PENDING',
-          paymentMethod: customer.paymentMethod,
-          // No seu Schema você tem 'observation' e 'notes'. 
-          // Vamos usar o 'observation' que você criou por último:
-          observation: customer.changeFor ? `Troco para: ${customer.changeFor}` : '',
+          orderNumber: orderNumber,
+          customerName: customer?.name || 'Venda de Balcão',
+          customerPhone: customer?.phone || 'N/A',
+          deliveryOption: deliveryOption,
+          deliveryAddress: deliveryAddress || null,
+          subtotal: calculatedSubtotal, // 👈 Agora ele sempre existirá e será preciso!
+          deliveryFee: safeDeliveryFee,
+          totalAmount: calculatedTotal,
+          paymentMethod: paymentMethod,
+          hasPrescription: hasPrescription,
+          observation: observation || null,
+          changeFor: changeFor ? String(changeFor) : null,
+          source: source,
+          status: source === 'COUNTER' ? 'COMPLETED' : 'PENDING',
           
           orderItems: {
             create: items.map((item: any) => ({
-              productId: item.product.id,
-              quantity: item.quantity,
-              price: item.product.price,
-            })),
-          },
+              productId: item.product?.id || item.id,
+              quantity: item.quantity || 1,
+              price: Number(item.product?.price || item.price || 0),
+            }))
+          }
         },
+        include: {
+          orderItems: true
+        }
       });
+
+      // B. BAIXA AUTOMÁTICA DE ESTOQUE
+      for (const item of items) {
+        const productId = item.product?.id || item.id;
+        const qtyToSubtract = item.quantity || 1;
+
+        await tx.product.update({
+          where: { id: productId },
+          data: {
+            stock: {
+              decrement: qtyToSubtract
+            }
+          }
+        });
+      }
 
       return newOrder;
     });
 
-    return NextResponse.json({ success: true, order: result });
+    return NextResponse.json({ success: true, order: result }, { status: 201 });
 
-  } catch (error) {
-    console.error('Erro no Checkout API:', error);
+  } catch (error: any) {
+    console.error("Erro no Checkout/PDV:", error);
+
     return NextResponse.json(
-      { error: 'Erro interno ao processar o pedido' },
+      { error: 'Erro ao processar a venda e atualizar o estoque.' },
       { status: 500 }
     );
   }

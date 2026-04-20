@@ -1,95 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// GET - Buscar produto específico
-export async function GET(
+// 1. PATCH - Atualiza apenas botões rápidos (Disponível/Destaque)
+export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
-      include: {
-        category: true,
-        batches: {
-          orderBy: { expiryDate: 'asc' },
-        },
+    const { id } = await params;
+    const body = await request.json();
+    const { available, featured } = body;
+
+    const updatedProduct = await prisma.product.update({
+      where: { id },
+      data: {
+        ...(available !== undefined && { available }),
+        ...(featured !== undefined && { featured }),
       },
     });
 
-    if (!product) {
-      return NextResponse.json(
-        { error: 'Produto não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(product);
+    return NextResponse.json(updatedProduct);
   } catch (error) {
-    console.error('Error fetching product:', error);
-    return NextResponse.json(
-      { error: 'Erro ao buscar produto' },
-      { status: 500 }
-    );
+    console.error('Erro no PATCH:', error);
+    return NextResponse.json({ error: 'Erro ao atualizar status' }, { status: 500 });
   }
 }
 
-// PUT - Atualizar produto
+// 2. PUT - Salva as alterações feitas no Modal de "Editar"
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
+    const { id } = await params;
     const body = await request.json();
-
-    const product = await prisma.product.update({
-      where: { id: params.id },
+    
+    const updatedProduct = await prisma.product.update({
+      where: { id },
       data: {
         name: body.name,
-        brand: body.brand,
         description: body.description,
-        price: body.price,
-        image: body.image,
-        available: body.available,
-        featured: body.featured,
-        discount: body.discount,
-        requiresPrescription: body.requiresPrescription,
-        stock: body.stock,
+        price: Number(body.price),
+        discount: body.discount ? Number(body.discount) : 0,
         categoryId: body.categoryId,
-      },
-      include: {
-        category: true,
       },
     });
 
-    return NextResponse.json(product);
+    return NextResponse.json(updatedProduct);
   } catch (error) {
-    console.error('Error updating product:', error);
-    return NextResponse.json(
-      { error: 'Erro ao atualizar produto' },
-      { status: 500 }
-    );
+    console.error('Erro no PUT:', error);
+    return NextResponse.json({ error: 'Erro ao editar produto' }, { status: 500 });
   }
 }
 
-// DELETE - Deletar produto
+// 3. DELETE - Exclui o produto do banco de dados
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
+    const { id } = await params;
+    
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error('Erro no DELETE:', error);
     return NextResponse.json(
-      { error: 'Erro ao deletar produto' },
+      { error: 'Não foi possível deletar. O produto pode estar vinculado a um pedido.' }, 
       { status: 500 }
     );
   }

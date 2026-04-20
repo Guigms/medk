@@ -184,10 +184,10 @@ export default function DashboardPage() {
                   📊 Ver Analytics Completo
                 </Link>
                 <Link
-                  href="/admin/prescricoes"
+                  href="/admin/pedidos"
                   className="bg-yellow-600 text-white p-4 rounded-lg hover:bg-yellow-700 transition-colors text-center font-medium"
                 >
-                  📋 Gerenciar Receitas
+                  📋 Gerenciar Pedidos
                 </Link>
               </div>
             </div>
