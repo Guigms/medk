@@ -12,12 +12,12 @@ datasource db {
 enum Role {
   USER
   ADMIN
-  ATTENDANT // Novo: Cargo para os funcionários do caixa
+  ATTENDANT
 }
 
 enum OrderSource {
-  ONLINE    // Venda pelo site
-  COUNTER   // Venda presencial no balcão (PDV)
+  ONLINE    
+  COUNTER   
 }
 
 enum OrderStatus {
@@ -62,6 +62,7 @@ model User {
   orders        Order[]
   loyaltyPoints LoyaltyPoints?
   reminders     Reminder[]
+  statusHistory OrderStatusHistory[] // 🌟 ADICIONADO
 
   @@map("users")
 }
@@ -106,6 +107,7 @@ model Product {
   productClick ProductClick[]
   batches      Batch[]
   reminders    Reminder[]
+  stockAlerts  StockAlert[]   // 🌟 ADICIONADO
 
   @@index([categoryId])
   @@map("products")
@@ -195,11 +197,12 @@ model Order {
   updatedAt       DateTime    @updatedAt
   observation     String?
   changeFor       String?
-  source          OrderSource @default(ONLINE) // Novo: Define a origem da venda
+  source          OrderSource @default(ONLINE)
 
-  user       User?       @relation(fields: [userId], references: [id])
-  coupon     Coupon?     @relation(fields: [couponId], references: [id])
-  orderItems OrderItem[]
+  user          User?                @relation(fields: [userId], references: [id])
+  coupon        Coupon?              @relation(fields: [couponId], references: [id])
+  orderItems    OrderItem[]
+  statusHistory OrderStatusHistory[] // 🌟 ADICIONADO
 
   @@index([userId])
   @@index([status])
@@ -320,4 +323,33 @@ model SalesReport {
 
   @@index([date])
   @@map("sales_reports")
+}
+
+// 🌟 NOVOS MODELOS ADICIONADOS AQUI
+model StockAlert {
+  id        String   @id @default(cuid())
+  productId String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("stock_alerts")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  userId    String      
+  status    OrderStatus 
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
+  @@map("order_status_history")
 }

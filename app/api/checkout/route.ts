@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       deliveryFee = 0,
       observation,
       changeFor,
-      source = 'ONLINE' // Padrão é online, mas o PDV enviará 'COUNTER'
+      source = 'ONLINE'
     } = body;
 
     // 1. Verificação de Receita
@@ -22,8 +22,7 @@ export async function POST(request: NextRequest) {
       item.product?.requiresPrescription === true || item.requiresPrescription === true
     );
 
-    // 2. CÁLCULO SEGURO NO BACK-END (Resolve o erro do subtotal faltando)
-    // Multiplicamos o preço de cada item pela quantidade para achar o subtotal exato
+    // 2. Cálculo do Subtotal (Segurança no Backend)
     const calculatedSubtotal = items.reduce((acc: number, item: any) => {
       const itemPrice = Number(item.product?.price || item.price || 0);
       return acc + (itemPrice * (item.quantity || 1));
@@ -31,14 +30,11 @@ export async function POST(request: NextRequest) {
 
     const safeDeliveryFee = Number(deliveryFee) || 0;
     const calculatedTotal = calculatedSubtotal + safeDeliveryFee;
-
-    // 3. Gerar Número do Pedido
     const orderNumber = Math.floor(100000 + Math.random() * 900000);
 
-    // 4. EXECUÇÃO DA TRANSAÇÃO (Tudo ou Nada)
+    // 3. EXECUÇÃO DA TRANSAÇÃO
     const result = await prisma.$transaction(async (tx) => {
       
-      // A. Criar o Pedido Principal
       const newOrder = await tx.order.create({
         data: {
           orderNumber: orderNumber,
@@ -46,7 +42,7 @@ export async function POST(request: NextRequest) {
           customerPhone: customer?.phone || 'N/A',
           deliveryOption: deliveryOption,
           deliveryAddress: deliveryAddress || null,
-          subtotal: calculatedSubtotal, // 👈 Agora ele sempre existirá e será preciso!
+          subtotal: calculatedSubtotal, 
           deliveryFee: safeDeliveryFee,
           totalAmount: calculatedTotal,
           paymentMethod: paymentMethod,
@@ -55,7 +51,6 @@ export async function POST(request: NextRequest) {
           changeFor: changeFor ? String(changeFor) : null,
           source: source,
           status: source === 'COUNTER' ? 'COMPLETED' : 'PENDING',
-          
           orderItems: {
             create: items.map((item: any) => ({
               productId: item.product?.id || item.id,
@@ -63,25 +58,28 @@ export async function POST(request: NextRequest) {
               price: Number(item.product?.price || item.price || 0),
             }))
           }
-        },
-        include: {
-          orderItems: true
         }
       });
 
-      // B. BAIXA AUTOMÁTICA DE ESTOQUE
+      // 4. BAIXA DE ESTOQUE E VERIFICAÇÃO DE ALERTA
       for (const item of items) {
         const productId = item.product?.id || item.id;
         const qtyToSubtract = item.quantity || 1;
 
-        await tx.product.update({
+        const updatedProduct = await tx.product.update({
           where: { id: productId },
-          data: {
-            stock: {
-              decrement: qtyToSubtract
-            }
-          }
+          data: { stock: { decrement: qtyToSubtract } }
         });
+
+        // 🌟 AGORA FUNCIONARÁ: O Prisma reconhece tx.stockAlert
+        if (updatedProduct.stock <= updatedProduct.minStock) {
+          await tx.stockAlert.create({
+            data: {
+              productId: updatedProduct.id,
+              message: `Atenção: O produto "${updatedProduct.name}" atingiu o nível crítico. Saldo atual: ${updatedProduct.stock} unidades.`
+            }
+          });
+        }
       }
 
       return newOrder;
@@ -90,11 +88,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, order: result }, { status: 201 });
 
   } catch (error: any) {
-    console.error("Erro no Checkout/PDV:", error);
-
-    return NextResponse.json(
-      { error: 'Erro ao processar a venda e atualizar o estoque.' },
-      { status: 500 }
-    );
+    console.error("Erro no Checkout:", error);
+    return NextResponse.json({ error: 'Erro ao processar a venda.' }, { status: 500 });
   }
 }

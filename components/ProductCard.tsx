@@ -16,11 +16,29 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const favorite = isFavorite(product.id);
   
-  const finalPrice = product.discount 
-    ? calculateDiscountPrice(product.price, product.discount)
-    : product.price;
+  // 🌟 CORREÇÃO DEFINITIVA: Forçando a conversão para número para evitar erros do Prisma (Decimal)
+  const basePrice = Number(product.price) || 0;
+  const discountValue = Number(product.discount) || 0;
+  
+  const finalPrice = discountValue > 0 
+    ? calculateDiscountPrice(basePrice, discountValue)
+    : basePrice;
 
-  const handleFavoriteClick = () => {
+  // Registra o clique no banco de dados para o Analytics
+  const recordClick = async () => {
+    try {
+      await fetch('/api/products/click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id }),
+      });
+    } catch (error) {
+      console.error("Erro ao registrar clique:", error);
+    }
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (favorite) {
       removeFromFavorites(product.id);
     } else {
@@ -28,30 +46,50 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
   };
 
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    addToCart(product);
+    recordClick();
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow" data-testid={`product-card-${product.id}`}>
+    <div 
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow relative group" 
+      data-testid={`product-card-${product.id}`}
+      onClick={recordClick}
+    >
       {/* Image */}
-      <div className="relative h-48 bg-gray-100">
+      <div className="relative h-48 bg-gray-100 cursor-pointer">
         <Image
           src={product.image}
           alt={product.name}
           fill
-          className="object-cover"
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
-        {product.discount && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-bold">
-            -{product.discount}%
+        
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute top-2 right-2 bg-white/90 p-2 rounded-full shadow-md hover:scale-110 transition-transform z-10"
+        >
+          <span className="text-xl">{favorite ? '❤️' : '🤍'}</span>
+        </button>
+
+        {discountValue > 0 && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold shadow-sm">
+            -{discountValue}%
           </div>
         )}
+        
         {product.featured && (
-          <div className="absolute top-2 left-2 bg-yellow-400 text-gray-900 px-2 py-1 rounded text-sm font-bold">
+          <div className="absolute bottom-2 left-2 bg-yellow-400 text-gray-900 px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter shadow-sm">
             ⭐ Destaque
           </div>
         )}
+
         {!product.available && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-20">
+            <span className="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg">
               Indisponível
             </span>
           </div>
@@ -60,65 +98,68 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       {/* Content */}
       <div className="p-4">
-        {/* Favorite Button */}
-        <button
-          onClick={handleFavoriteClick}
-          className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md hover:scale-110 transition-transform z-10"
-          data-testid={`favorite-${product.id}`}
+        <h3 
+          className="font-bold text-gray-900 mb-1 line-clamp-1 hover:text-[#253289] transition-colors cursor-pointer" 
+          onClick={recordClick}
         >
-          <span className="text-xl">
-            {favorite ? '❤️' : '🤍'}
-          </span>
-        </button>
-
-        <h3 className="font-bold text-lg mb-2 line-clamp-2" data-testid={`product-name-${product.id}`}>
           {product.name}
         </h3>
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+        
+        <p className="text-gray-500 text-xs mb-3 line-clamp-2 h-8">
           {product.description}
         </p>
 
         {/* Prescription Alert */}
-        <PrescriptionAlert product={product} />
+        <div className="mb-3 min-h-[20px]">
+          <PrescriptionAlert product={product} />
+        </div>
 
-        {/* Price */}
+        {/* Price Section */}
         <div className="mb-4">
-          {product.discount ? (
-            <div>
-              <div className="text-gray-400 line-through text-sm">
-                {formatPrice(product.price)}
-              </div>
-              <div className="text-green-600 font-bold text-xl" data-testid={`product-price-${product.id}`}>
+          {discountValue > 0 ? (
+            <div className="flex items-baseline gap-2">
+              <span className="text-green-600 font-black text-xl">
                 {formatPrice(finalPrice)}
-              </div>
+              </span>
+              <span className="text-gray-400 line-through text-xs font-medium">
+                {formatPrice(basePrice)}
+              </span>
             </div>
           ) : (
-            <div className="text-green-600 font-bold text-xl" data-testid={`product-price-${product.id}`}>
-              {formatPrice(product.price)}
+            <div className="text-green-600 font-black text-xl">
+              {formatPrice(basePrice)}
             </div>
           )}
         </div>
 
-        {/* WhatsApp Button */}
-        {product.available && (
+        {/* Action Buttons */}
+        {product.available ? (
           <div className="space-y-2">
             <button
-              onClick={() => addToCart(product)}
-              className="block w-full bg-[#10BCEC] text-white text-center py-2 rounded-lg hover:bg-[#0da5d1] transition-colors font-medium"
-              data-testid={`add-to-cart-${product.id}`}
+              onClick={handleAddToCart}
+              className="w-full bg-[#253289] text-white text-sm py-2.5 rounded-xl hover:bg-[#1a2461] transition-all font-bold shadow-md shadow-blue-100 flex items-center justify-center gap-2"
             >
-              🛒 Adicionar ao Carrinho
+              <span>🛒</span> Adicionar
             </button>
+            
+            {/* 🌟 ENVIANDO O PREÇO FINAL JÁ TRATADO COMO NÚMERO */}
             <a
-              href={formatWhatsAppLink(product.name)}
+              href={formatWhatsAppLink(product.name, finalPrice)}
               target="_blank"
               rel="noopener noreferrer"
-              className="block w-full bg-[#25D366] text-white text-center py-2 rounded-lg hover:bg-[#1ebe57] transition-colors font-medium"
-              data-testid={`product-whatsapp-${product.id}`}
+              onClick={recordClick} 
+              className="w-full bg-[#25D366] text-white text-sm py-2.5 rounded-xl hover:bg-[#1ebe57] transition-all font-bold shadow-md shadow-green-100 flex items-center justify-center gap-2"
             >
-              💬 Pedir Direto
+              <span>💬</span> Pedir agora
             </a>
           </div>
+        ) : (
+          <button
+            disabled
+            className="w-full bg-gray-100 text-gray-400 text-sm py-2.5 rounded-xl font-bold cursor-not-allowed"
+          >
+            Produto Esgotado
+          </button>
         )}
       </div>
     </div>

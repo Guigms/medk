@@ -4,10 +4,8 @@ import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import WhatsAppButton from '@/components/WhatsAppButton';
-import { CartProvider } from '@/lib/cart';
-import { FavoritesProvider } from '@/lib/favorites';
-import { AuthProvider } from '@/lib/auth'; // 👈 IMPORTAÇÃO ADICIONADA AQUI
 import CartWrapper from '@/components/CartWrapper';
+import { Providers } from '@/lib/providers';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -80,21 +78,15 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
-      >
-        {/* 👈 AUTH PROVIDER ENVOLVENDO TODA A APLICAÇÃO */}
-        <AuthProvider>
-          <CartProvider>
-            <FavoritesProvider>
-              <Header />
-              <main className="min-h-screen">{children}</main>
-              <Footer />
-              <WhatsAppButton />
-              <CartWrapper />
-            </FavoritesProvider>
-          </CartProvider>
-        </AuthProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}>
+        {/* 🌟 Envolve TODA a árvore com o Providers */}
+        <Providers>
+          <Header />
+          <main className="min-h-screen">{children}</main>
+          <Footer />
+          <WhatsAppButton />
+          <CartWrapper />
+        </Providers>
       </body>
     </html>
   );

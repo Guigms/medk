@@ -6,27 +6,32 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Sincronizando os nomes dos parâmetros com os componentes (SearchBar usa 'q')
     const category = searchParams.get('category') || searchParams.get('categoria');
     const searchTerm = searchParams.get('q') || searchParams.get('search'); 
     const featured = searchParams.get('featured');
+    
+    // 🌟 NOVO: Captura se a requisição quer ver tudo (visão do admin)
+    const adminView = searchParams.get('adminView') === 'true';
 
-    const where: any = {
-      available: true // Por padrão, só mostra o que está disponível no site
-    };
+    const where: any = {};
+
+    // Se NÃO for visão de admin, aplicamos a trava de segurança de produtos ativos
+    if (!adminView) {
+      where.available = true;
+    }
 
     // Se houver busca por categoria
     if (category) {
       where.category = { slug: category };
     }
 
-    // Lógica de busca textual corrigida (AGORA COM CÓDIGO DE BARRAS)
+    // Lógica de busca textual (Nome, Marca ou Código de Barras)
     if (searchTerm) {
       where.OR = [
         { name: { contains: searchTerm } },
         { description: { contains: searchTerm } },
         { brand: { contains: searchTerm } },
-        { barcode: { equals: searchTerm } }, // 👈 Adicionamos a busca exata pelo código de barras
+        { barcode: { equals: searchTerm } },
       ];
     }
 
@@ -43,7 +48,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Converte Decimal para Number para evitar erros no Frontend
+    // Converte Decimal para Number para o Frontend
     const serializedProducts = products.map(p => ({
       ...p,
       price: Number(p.price)
@@ -68,13 +73,13 @@ export async function POST(request: NextRequest) {
       data: {
         name: body.name,
         brand: body.brand || null,
-        barcode: body.barcode || null, // Garante que salve null se vier vazio
+        barcode: body.barcode || null,
         description: body.description,
-        price: Number(body.price), // Segurança para o Prisma (Decimal)
+        price: Number(body.price),
         image: body.image,
         available: body.available ?? true,
         featured: body.featured ?? false,
-        discount: body.discount,
+        discount: body.discount ? parseInt(body.discount) : null,
         requiresPrescription: body.requiresPrescription ?? false,
         stock: body.stock ? Number(body.stock) : 0,
         categoryId: body.categoryId,

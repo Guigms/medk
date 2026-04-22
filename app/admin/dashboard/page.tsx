@@ -1,252 +1,203 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { products, categories } from '@/lib/mockData';
 import { formatPrice } from '@/lib/utils';
+import { 
+  LayoutDashboard, 
+  Package, 
+  CheckCircle, 
+  FileText, 
+  MousePointer2, 
+  AlertTriangle, 
+  Bell, 
+  Check,
+  TrendingUp,
+  History
+} from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
+
+  // Estados para dados reais do banco
+  const [stockAlerts, setStockAlerts] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Busca dados do servidor
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [alertsRes, statsRes] = await Promise.all([
+        fetch('/api/admin/alerts'),
+        fetch('/api/analytics') // Rota que calcula os totais de produtos e cliques
+      ]);
+
+      if (alertsRes.ok) setStockAlerts(await alertsRes.json());
+      if (statsRes.ok) setStats(await statsRes.json());
+    } catch (error) {
+      console.error("Erro ao carregar dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Função para limpar o alerta (marcar como lido)
+  const markAsRead = async (alertId: string) => {
+    try {
+      const res = await fetch('/api/admin/alerts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alertId })
+      });
+      if (res.ok) {
+        setStockAlerts(prev => prev.filter(a => a.id !== alertId));
+      }
+    } catch (error) {
+      console.error("Erro ao marcar como lido:", error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
     router.push('/admin/login');
   };
 
-  const availableProducts = products.filter(p => p.available).length;
-  const unavailableProducts = products.filter(p => !p.available).length;
-  const featuredProducts = products.filter(p => p.featured).length;
-  const totalProducts = products.length;
-  const prescriptionProducts = products.filter(p => p.requiresPrescription).length;
-
-  // Analytics
-  const totalClicks = products.reduce((sum, p) => sum + (p.clicks || 0), 0);
-  const topProducts = [...products]
-    .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
-    .slice(0, 5);
-
-  // Produtos próximos do vencimento (90 dias)
-  const today = new Date();
-  const expiringProducts = products.filter(p => {
-    if (!p.expiryDate) return false;
-    const expiryDate = new Date(p.expiryDate);
-    const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 90 && daysUntilExpiry > 0;
-  });
+  if (loading) {
+    return <div className="min-h-screen bg-gray-100 flex items-center justify-center font-bold text-[#253289]">Carregando sistema...</div>;
+  }
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-100">
         {/* Header */}
-        <header className="bg-white shadow-md">
+        <header className="bg-white shadow-md border-b border-gray-200">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-3xl">💊</span>
+                <h1 className="text-2xl font-black text-[#253289] flex items-center gap-2">
+                  <LayoutDashboard size={28} />
                   Painel Administrativo
                 </h1>
-                <p className="text-gray-600">Bem-vindo, {user?.name}</p>
+                <p className="text-gray-500 text-sm">Olá, {user?.name}.</p>
               </div>
               <div className="flex items-center gap-4">
-                <Link
-                  href="/"
-                  className="text-gray-600 hover:text-gray-900"
-                  target="_blank"
-                >
-                  🌐 Ver Site
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-                  data-testid="logout-button"
-                >
-                  Sair
-                </button>
+                <Link href="/" className="text-sm font-bold text-gray-500 hover:text-[#253289] transition-colors" target="_blank">🌐 Ver Site</Link>
+                <button onClick={handleLogout} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors font-bold border border-red-100">Sair</button>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm mb-1">Total de Produtos</p>
-                  <p className="text-3xl font-bold text-gray-900" data-testid="stat-total-products">{totalProducts}</p>
+          
+          {/* 🚨 SEÇÃO DE ALERTAS DE ESTOQUE (Dinâmica do Banco) */}
+          {stockAlerts.length > 0 && (
+            <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <Bell className="text-red-600 animate-bounce" size={24} />
+                  <h3 className="font-black text-red-800 text-lg">Estoque Crítico Detectado</h3>
                 </div>
-                <div className="text-4xl">📊</div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm mb-1">Disponíveis</p>
-                  <p className="text-3xl font-bold text-green-600" data-testid="stat-available-products">{availableProducts}</p>
-                </div>
-                <div className="text-4xl">✅</div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm mb-1">Requerem Receita</p>
-                  <p className="text-3xl font-bold text-yellow-600">{prescriptionProducts}</p>
-                </div>
-                <div className="text-4xl">📋</div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm mb-1">Total de Cliques</p>
-                  <p className="text-3xl font-bold text-blue-600">{totalClicks}</p>
-                </div>
-                <div className="text-4xl">👆</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Alerts */}
-          {expiringProducts.length > 0 && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 mb-8 rounded-lg">
-              <div className="flex items-start gap-3">
-                <span className="text-3xl">⚠️</span>
-                <div className="flex-1">
-                  <h3 className="font-bold text-yellow-800 mb-2">Produtos Próximos do Vencimento</h3>
-                  <p className="text-sm text-yellow-700 mb-3">
-                    {expiringProducts.length} produto(s) com validade em menos de 90 dias
-                  </p>
-                  <div className="space-y-2">
-                    {expiringProducts.map(p => (
-                      <div key={p.id} className="bg-white p-3 rounded border border-yellow-200">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-900">{p.name}</span>
-                          <span className="text-sm text-yellow-700">Vence: {p.expiryDate}</span>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {stockAlerts.map(alert => (
+                    <div key={alert.id} className="bg-white p-4 rounded-xl border border-red-100 flex justify-between items-center shadow-sm group">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{alert.message}</p>
+                        <p className="text-[10px] text-gray-400 uppercase mt-1">Registrado em: {new Date(alert.createdAt).toLocaleString()}</p>
                       </div>
-                    ))}
-                  </div>
+                      <button 
+                        onClick={() => markAsRead(alert.id)}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                        title="Marcar como resolvido"
+                      >
+                        <Check size={20} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatCard title="Total de Produtos" value={stats?.totalProducts || 0} icon={<Package className="text-blue-600" />} />
+            <StatCard title="Ativos no Site" value={stats?.availableProducts || 0} icon={<CheckCircle className="text-green-600" />} color="text-green-600" />
+            <StatCard title="Requerem Receita" value={stats?.prescriptionProducts || 0} icon={<FileText className="text-amber-600" />} color="text-amber-600" />
+            <StatCard title="Total de Cliques" value={stats?.totalClicks || 0} icon={<MousePointer2 className="text-purple-600" />} color="text-purple-600" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Top Products */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2">
-                🔥 Produtos Mais Clicados
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-black mb-6 text-gray-900 flex items-center gap-2">
+                <TrendingUp size={20} className="text-blue-600" /> Produtos em Alta
               </h2>
-              <div className="space-y-3">
-                {topProducts.map((product, index) => (
-                  <div key={product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
-                      {index + 1}
-                    </div>
+              <div className="space-y-4">
+                {stats?.topProducts?.map((product: any, index: number) => (
+                  <div key={product.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all">
+                    <div className="w-10 h-10 bg-[#253289] text-white rounded-xl flex items-center justify-center font-black">{index + 1}</div>
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900">{product.name}</div>
-                      <div className="text-sm text-gray-600">{categories.find(c => c.slug === product.category)?.name}</div>
+                      <div className="font-bold text-gray-900">{product.name}</div>
+                      <div className="text-xs text-gray-500">{product.category?.name}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-blue-600">{product.clicks || 0}</div>
-                      <div className="text-xs text-gray-500">cliques</div>
+                      <div className="font-black text-[#253289]">{product.clicks}</div>
+                      <div className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Cliques</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-900">Ações Rápidas</h2>
-              <div className="grid grid-cols-1 gap-4">
-                <Link
-                  href="/admin/produtos"
-                  className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition-colors text-center font-medium"
-                  data-testid="manage-products-button"
-                >
-                  📦 Gerenciar Produtos
-                </Link>
-                <Link
-                  href="/admin/analytics"
-                  className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
-                >
-                  📊 Ver Analytics Completo
-                </Link>
-                <Link
-                  href="/admin/pedidos"
-                  className="bg-yellow-600 text-white p-4 rounded-lg hover:bg-yellow-700 transition-colors text-center font-medium"
-                >
-                  📋 Gerenciar Pedidos
-                </Link>
+            {/* Ações Rápidas */}
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-black mb-6 text-gray-900">Ações Rápidas</h2>
+              <div className="flex flex-col gap-3">
+                <QuickActionButton href="/admin/produtos" label="Gerenciar Estoque" color="bg-[#253289]" />
+                <QuickActionButton href="/admin/pedidos" label="Ver Pedidos" color="bg-amber-500" />
+                <QuickActionButton href="/admin/analytics" label="Relatórios Financeiros" color="bg-emerald-600" />
+                <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <p className="text-xs text-blue-800 font-bold mb-1 italic">Dica do Sistema:</p>
+                  <p className="text-[11px] text-blue-600">Mantenha os preços e estoque sempre atualizados para evitar cancelamentos no checkout.</p>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Recent Products */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Produtos Recentes</h2>
-              <Link
-                href="/admin/produtos"
-                className="text-green-600 hover:text-green-700 font-medium"
-              >
-                Ver todos →
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Produto</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Categoria</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Preço</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Cliques</th>
-                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.slice(0, 5).map((product) => (
-                    <tr key={product.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 text-gray-900">{product.name}</td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {categories.find(c => c.slug === product.category)?.name}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 font-medium">
-                        {formatPrice(product.price)}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {product.clicks || 0}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            product.available
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {product.available ? 'Disponível' : 'Indisponível'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </main>
       </div>
     </ProtectedRoute>
+  );
+}
+
+// Componentes Auxiliares
+function StatCard({ title, value, icon, color = "text-gray-900" }: any) {
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-400 text-[11px] font-black uppercase tracking-widest mb-1">{title}</p>
+          <p className={`text-3xl font-black ${color}`}>{value}</p>
+        </div>
+        <div className="p-3 bg-gray-50 rounded-xl">{icon}</div>
+      </div>
+    </div>
+  );
+}
+
+function QuickActionButton({ href, label, color }: any) {
+  return (
+    <Link href={href} className={`${color} text-white p-4 rounded-xl hover:opacity-90 transition-all text-center font-bold text-sm shadow-lg shadow-gray-200`}>
+      {label}
+    </Link>
   );
 }

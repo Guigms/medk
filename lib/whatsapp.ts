@@ -1,10 +1,10 @@
 // lib/whatsapp.ts
+import { formatPrice, calculateDiscountPrice } from '@/lib/utils'; // 🌟 IMPORTAÇÕES ADICIONADAS
 
 export const generateWhatsAppLink = (order: any, items: any[]) => {
   const phone = "5585992000696"; // O seu número
   
-  // 1. VERIFICAÇÃO DE RECEITA (A Mágica acontece aqui)
-  // Checa se algum item do carrinho tem a flag requiresPrescription como verdadeira
+  // 1. VERIFICAÇÃO DE RECEITA
   const hasPrescriptionItems = items.some(item => 
     item.product?.requiresPrescription === true || item.requiresPrescription === true
   );
@@ -15,7 +15,7 @@ export const generateWhatsAppLink = (order: any, items: any[]) => {
   message += `*Pagamento:* ${order.paymentMethod}\n`;
   
   if (order.changeFor) {
-    message += `*Troco para:* R$ ${Number(order.changeFor).toFixed(2)}\n`;
+    message += `*Troco para:* ${formatPrice(Number(order.changeFor))}\n`;
   }
   
   message += `--------------------------\n`;
@@ -23,23 +23,30 @@ export const generateWhatsAppLink = (order: any, items: any[]) => {
   
   items.forEach(item => {
     const productName = item.product?.name || item.name || 'Produto';
-    const productPrice = item.product?.price || item.price || 0;
     
-    // Adiciona um emoji de alerta ao lado do nome do produto na lista, se ele exigir receita
+    // 🌟 2. PUXA OS VALORES E CALCULA O DESCONTO ANTES DE ENVIAR
+    const basePrice = Number(item.product?.price || item.price || 0);
+    const discountValue = Number(item.product?.discount || item.discount || 0);
+    
+    const finalPrice = discountValue > 0 
+      ? calculateDiscountPrice(basePrice, discountValue) 
+      : basePrice;
+    
     const needsRx = item.product?.requiresPrescription || item.requiresPrescription;
     const rxIcon = needsRx ? ' 📄*(Receita)*' : '';
 
-    message += `• ${item.quantity}x ${productName}${rxIcon} - R$ ${Number(productPrice).toFixed(2)}\n`;
+    // 🌟 3. ENVIA O 'finalPrice' COM A NOSSA FUNÇÃO DE FORMATAÇÃO (R$)
+    message += `• ${item.quantity}x ${productName}${rxIcon} - ${formatPrice(finalPrice)}\n`;
   });
   
   message += `--------------------------\n`;
-  message += `*Total do Pedido: R$ ${Number(order.totalAmount).toFixed(2)}*\n`;
+  message += `*Total do Pedido: ${formatPrice(Number(order.totalAmount))}*\n`;
 
   if (order.deliveryAddress) {
     message += `\n*Endereço de Entrega:*\n${order.deliveryAddress}\n`;
   }
 
-  // 2. ADICIONA O ALERTA NO FINAL DA MENSAGEM
+  // 4. ADICIONA O ALERTA NO FINAL DA MENSAGEM
   if (hasPrescriptionItems) {
     message += `\n🚨 *ATENÇÃO: RECEITA OBRIGATÓRIA* 🚨\n`;
     message += `_Este pedido contém medicamentos controlados ou antibióticos. Por favor, envie a foto da receita médica aqui no chat para que o nosso farmacêutico possa validar e liberar a entrega._\n`;

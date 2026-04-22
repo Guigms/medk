@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useCart } from '@/lib/cart'; // Verifique se o caminho do seu hook está correto
-import { formatPrice } from '@/lib/utils';
+import { useCart } from '@/lib/cart';
+import { formatPrice, calculateDiscountPrice } from '@/lib/utils'; // 🌟 IMPORT ADICIONADO AQUI
 import { generateWhatsAppLink } from '@/lib/whatsapp';
 import { useRouter } from 'next/navigation';
-import { X, ShoppingBag, Trash2 } from 'lucide-react'; // Ícones comuns
+import { X, ShoppingBag, Trash2 } from 'lucide-react';
 
 export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { items, totalAmount, clearCart, removeItem } = useCart();
@@ -41,6 +41,7 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
       localStorage.setItem('last_order_number', order.orderNumber.toString());
 
       if (response.ok) {
+        // Envia os itens para gerar o link do Whats
         const whatsappUrl = generateWhatsAppLink(order, items);
         window.open(whatsappUrl, '_blank');
         clearCart();
@@ -80,22 +81,41 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
               <p>Seu carrinho está vazio</p>
             </div>
           ) : (
-            items.map((item) => (
-              <div key={item.product.id} className="flex gap-4 border-b pb-4 items-center">
-                <img src={item.product.image} alt={item.product.name} className="w-16 h-16 object-cover rounded-lg bg-gray-100" />
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-gray-800 line-clamp-1">{item.product.name}</h4>
-                  <p className="text-xs text-blue-600 font-semibold">{item.quantity}x {formatPrice(item.product.price)}</p>
+            items.map((item) => {
+              // 🌟 CÁLCULO DO PREÇO COM DESCONTO DENTRO DO CARRINHO
+              const basePrice = Number(item.product.price) || 0;
+              const discountValue = Number(item.product.discount) || 0;
+              const finalPrice = discountValue > 0 
+                ? calculateDiscountPrice(basePrice, discountValue)
+                : basePrice;
+
+              return (
+                <div key={item.product.id} className="flex gap-4 border-b pb-4 items-center">
+                  <img src={item.product.image} alt={item.product.name} className="w-16 h-16 object-cover rounded-lg bg-gray-100" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-gray-800 line-clamp-1">{item.product.name}</h4>
+                    {/* 🌟 MOSTRANDO O PREÇO FINAL CORRETO */}
+                    <p className="text-xs text-blue-600 font-semibold">
+                      {item.quantity}x {formatPrice(finalPrice)}
+                    </p>
+                    
+                    {/* Exibe uma tag de desconto se existir para o cliente saber que está economizando */}
+                    {discountValue > 0 && (
+                      <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1 py-0.5 rounded">
+                        -{discountValue}% aplicado
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => removeItem(item.product.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                    <Trash2 size={18} />
+                  </button>
                 </div>
-                <button onClick={() => removeItem(item.product.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
-        {/* FORMULÁRIO (Aparece se tiver itens) */}
+        {/* FORMULÁRIO */}
         {items.length > 0 && (
           <div className="p-4 bg-gray-50 border-t border-b space-y-3">
             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Informações de Entrega</h3>

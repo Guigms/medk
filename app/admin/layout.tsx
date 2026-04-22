@@ -1,11 +1,14 @@
-'use client';
-
-import { AuthProvider } from '@/lib/auth';
-
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthProvider>{children}</AuthProvider>;
+  return (
+    <>
+      {/* Como o RootLayout já envolve tudo em Providers, 
+          não precisamos repetir o AuthProvider aqui. 
+          Basta renderizar os componentes filhos do Admin. */}
+      {children}
+    </>
+  );
 }

@@ -1,4 +1,3 @@
-// app/api/analytics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -29,12 +28,7 @@ export async function GET(request: NextRequest) {
       startDate.setHours(0, 0, 0, 0);
     }
 
-    if (isNaN(startDate.getTime())) {
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
-    }
-
-    // 1. Resumo Geral
+    // 1. Resumo Geral de Vendas (Financeiro)
     const summaryData = await prisma.order.aggregate({
       where: {
         createdAt: { gte: startDate, lte: endDate },
@@ -48,7 +42,15 @@ export async function GET(request: NextRequest) {
     const totalRevenue = Number(summaryData._sum.totalAmount || 0);
     const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
+    // 2. Contagens de Produtos (Para os Cards do Dashboard)
+    const [totalProducts, availableProducts, prescriptionProducts, totalClicks] = await Promise.all([
+      prisma.product.count(),
+      prisma.product.count({ where: { available: true } }),
+      prisma.product.count({ where: { requiresPrescription: true } }),
+      prisma.productClick.count() // 🌟 Agora conta cliques reais do banco
+    ]);
 
+    // 3. Dados do Gráfico de Vendas
     const ordersForChart = await prisma.order.findMany({
       where: {
         createdAt: { gte: startDate, lte: endDate },
@@ -59,13 +61,11 @@ export async function GET(request: NextRequest) {
 
     const dailySalesMap = new Map();
     ordersForChart.forEach(order => {
-      // Formata a data para "DD/MM"
       const dateStr = order.createdAt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       const amount = Number(order.totalAmount);
       dailySalesMap.set(dateStr, (dailySalesMap.get(dateStr) || 0) + amount);
     });
 
-    // Converte o Map para um array ordenado
     const salesChart = Array.from(dailySalesMap.entries()).map(([date, revenue]) => ({
       date,
       revenue
@@ -75,40 +75,40 @@ export async function GET(request: NextRequest) {
        return new Date(`2026-${monthA}-${dayA}`).getTime() - new Date(`2026-${monthB}-${dayB}`).getTime();
     });
 
-    // 3. Estoque Crítico
-    const lowStockProducts = await prisma.product.findMany({
-      where: { stock: { lte: 5 } },
-      select: { id: true, name: true, stock: true, category: { select: { name: true } } },
+    // 4. Gestão de Estoque e Alertas (Usando a nova tabela StockAlert)
+    const criticalCount = await prisma.stockAlert.count({ where: { isRead: false } });
+    
+    const lowStockItems = await prisma.product.findMany({
+      where: { stock: { lte: prisma.product.fields.minStock } }, // Comparação dinâmica
+      select: { id: true, name: true, stock: true, minStock: true, category: { select: { name: true } } },
       orderBy: { stock: 'asc' },
-      take: 10
+      take: 5
     });
 
-    // 4. Produtos mais vendidos (Top 5)
-    const topProductsRaw = await prisma.orderItem.groupBy({
+    // 5. 🌟 NOVO: Produtos Mais Clicados (Para o Dashboard)
+    const topClicksRaw = await prisma.productClick.groupBy({
       by: ['productId'],
-      where: { order: { createdAt: { gte: startDate }, status: 'COMPLETED' } },
-      _sum: { quantity: true },
-      orderBy: { _sum: { quantity: 'desc' } },
-      take: 5,
+      _count: { productId: true },
+      orderBy: { _count: { productId: 'desc' } },
+      take: 5
     });
 
-    const topProducts = await Promise.all(
-      topProductsRaw.map(async (item) => {
+    const topProductsByClicks = await Promise.all(
+      topClicksRaw.map(async (item) => {
         const product = await prisma.product.findUnique({
           where: { id: item.productId },
-          select: { name: true, price: true }
+          include: { category: { select: { name: true } } }
         });
-        const quantity = item._sum.quantity || 0;
-        const price = Number(product?.price || 0);
         return {
+          id: product?.id,
           name: product?.name || 'Produto Removido',
-          quantity: quantity,
-          revenue: price * quantity
+          clicks: item._count.productId,
+          category: { name: product?.category?.name || 'Sem Categoria' }
         };
       })
     );
 
-    // 5. ATUALIZADO: Pedidos com Paginação
+    // 6. Pedidos Recentes com Paginação
     const [recentOrders, totalRecentOrders] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: startDate, lte: endDate } },
@@ -122,22 +122,22 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const recentOrdersFormatted = recentOrders.map(order => ({
-      ...order,
-      totalAmount: Number(order.totalAmount)
-    }));
-
     return NextResponse.json({
       period: parseInt(periodParam || '30'),
+      // Resumo para os Cards Principais
+      totalProducts,
+      availableProducts,
+      prescriptionProducts,
+      totalClicks,
       summary: { totalOrders, totalRevenue, averageTicket },
-      salesChart, // Enviando os dados do gráfico
+      salesChart,
       inventory: {
-        criticalCount: lowStockProducts.length,
-        items: lowStockProducts.map(p => ({ ...p, categoryName: p.category?.name || 'Sem Categoria' }))
+        criticalCount, // 🌟 Alertas reais não lidos
+        items: lowStockItems.map(p => ({ ...p, categoryName: p.category?.name || 'Sem Categoria' }))
       },
-      topProducts,
+      topProducts: topProductsByClicks, // 🌟 Agora enviando cliques para o Dashboard
       recentOrders: {
-        items: recentOrdersFormatted,
+        items: recentOrders.map(o => ({ ...o, totalAmount: Number(o.totalAmount) })),
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(totalRecentOrders / limit),
