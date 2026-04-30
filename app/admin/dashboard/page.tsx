@@ -5,36 +5,27 @@ import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { formatPrice } from '@/lib/utils';
 import { 
-  LayoutDashboard, 
-  Package, 
-  CheckCircle, 
-  FileText, 
-  MousePointer2, 
-  AlertTriangle, 
-  Bell, 
-  Check,
-  TrendingUp,
-  History
+  LayoutDashboard, Package, CheckCircle, FileText, 
+  MousePointer2, Bell, Check, TrendingUp, Users, 
+  ShoppingCart
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth(); // 🌟 Pegamos o usuário logado para verificar o cargo
   const router = useRouter();
 
-  // Estados para dados reais do banco
   const [stockAlerts, setStockAlerts] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Busca dados do servidor
   const fetchData = async () => {
     try {
       setLoading(true);
+      // 🌟 CORREÇÃO: Adicionamos o { cache: 'no-store' } para forçar o carregamento em tempo real
       const [alertsRes, statsRes] = await Promise.all([
-        fetch('/api/admin/alerts'),
-        fetch('/api/analytics') // Rota que calcula os totais de produtos e cliques
+        fetch('/api/admin/alerts', { cache: 'no-store' }),
+        fetch('/api/analytics', { cache: 'no-store' }) 
       ]);
 
       if (alertsRes.ok) setStockAlerts(await alertsRes.json());
@@ -50,7 +41,6 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // Função para limpar o alerta (marcar como lido)
   const markAsRead = async (alertId: string) => {
     try {
       const res = await fetch('/api/admin/alerts', {
@@ -72,14 +62,14 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-100 flex items-center justify-center font-bold text-[#253289]">Carregando sistema...</div>;
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-[#253289]">Carregando sistema...</div>;
   }
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="bg-white shadow-md border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -87,7 +77,9 @@ export default function DashboardPage() {
                   <LayoutDashboard size={28} />
                   Painel Administrativo
                 </h1>
-                <p className="text-gray-500 text-sm">Olá, {user?.name}.</p>
+                <p className="text-gray-500 text-sm">
+                  Olá, {user?.name}. Você está logado como: <strong className="text-[#253289]">{user?.role === 'ADMIN' ? 'Administrador' : 'Atendente'}</strong>
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 <Link href="/" className="text-sm font-bold text-gray-500 hover:text-[#253289] transition-colors" target="_blank">🌐 Ver Site</Link>
@@ -99,7 +91,7 @@ export default function DashboardPage() {
 
         <main className="container mx-auto px-4 py-8">
           
-          {/* 🚨 SEÇÃO DE ALERTAS DE ESTOQUE (Dinâmica do Banco) */}
+          {/* Alertas de Estoque */}
           {stockAlerts.length > 0 && (
             <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
               <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl shadow-sm">
@@ -163,9 +155,18 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
               <h2 className="text-lg font-black mb-6 text-gray-900">Ações Rápidas</h2>
               <div className="flex flex-col gap-3">
-                <QuickActionButton href="/admin/produtos" label="Gerenciar Estoque" color="bg-[#253289]" />
-                <QuickActionButton href="/admin/pedidos" label="Ver Pedidos" color="bg-amber-500" />
-                <QuickActionButton href="/admin/analytics" label="Relatórios Financeiros" color="bg-emerald-600" />
+                <QuickActionButton href="/admin/pedidos" label="Ver Pedidos" color="bg-amber-500" icon={<Package size={18}/>} />
+                <QuickActionButton href="/admin/produtos" label="Gerenciar Estoque" color="bg-[#253289]" icon={<LayoutDashboard size={18}/>} />
+                <QuickActionButton href="/sell" label="Registrar Vendas" color="bg-green-700" icon={<ShoppingCart size={18}/>} />
+                
+                {/* 🌟 BOTÕES EXCLUSIVOS PARA ADMINISTRADOR */}
+                {user?.role === 'ADMIN' && (
+                  <>
+                    <QuickActionButton href="/admin/analytics" label="Relatórios Financeiros" color="bg-emerald-600" icon={<TrendingUp size={18}/>} />
+                    <QuickActionButton href="/admin/users" label="Gerenciar Equipe" color="bg-purple-600" icon={<Users size={18}/>} />
+                  </>
+                )}
+
                 <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <p className="text-xs text-blue-800 font-bold mb-1 italic">Dica do Sistema:</p>
                   <p className="text-[11px] text-blue-600">Mantenha os preços e estoque sempre atualizados para evitar cancelamentos no checkout.</p>
@@ -194,10 +195,10 @@ function StatCard({ title, value, icon, color = "text-gray-900" }: any) {
   );
 }
 
-function QuickActionButton({ href, label, color }: any) {
+function QuickActionButton({ href, label, color, icon }: any) {
   return (
-    <Link href={href} className={`${color} text-white p-4 rounded-xl hover:opacity-90 transition-all text-center font-bold text-sm shadow-lg shadow-gray-200`}>
-      {label}
+    <Link href={href} className={`${color} text-white p-4 rounded-xl hover:opacity-90 transition-all font-bold text-sm shadow-sm flex items-center gap-3`}>
+      {icon} {label}
     </Link>
   );
 }

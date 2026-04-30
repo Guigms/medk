@@ -25,7 +25,9 @@ interface ProductFormData {
   discount: string;
   requiresPrescription: boolean;
   stock: string;
-  barcode: string; // <-- Campo adicionado
+  barcode: string; 
+  purchaseBarcode: string; // <-- NOVO: Código da Caixa Master
+  conversionFactor: string; // <-- NOVO: Fator de conversão
 }
 
 const INITIAL_FORM_STATE: ProductFormData = {
@@ -40,7 +42,9 @@ const INITIAL_FORM_STATE: ProductFormData = {
   discount: '',
   requiresPrescription: false,
   stock: '',
-  barcode: '', // <-- Campo adicionado
+  barcode: '', 
+  purchaseBarcode: '', // <-- NOVO
+  conversionFactor: '1', // <-- NOVO: Padrão é 1 (venda direta)
 };
 
 export default function NovoProductPage() {
@@ -93,7 +97,12 @@ export default function NovoProductPage() {
           ...formData,
           price: priceValue,
           brand: formData.brand || null,
-          barcode: formData.barcode || null, // <-- Envia o código de barras ou null
+          barcode: formData.barcode || null, 
+          
+          // 🌟 NOVOS CAMPOS ENVIADOS PARA A API
+          purchaseBarcode: formData.purchaseBarcode || null, 
+          conversionFactor: parseInt(formData.conversionFactor) || 1, 
+          
           discount: formData.discount ? parseInt(formData.discount) : null,
           stock: formData.stock ? parseInt(formData.stock) : 0,
         }),
@@ -173,21 +182,49 @@ export default function NovoProductPage() {
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Código de Barras (Novo Campo adicionado primeiro para agilidade) */}
-                  <div className="md:col-span-2">
-                    <label htmlFor="barcode" className="block text-sm font-medium text-gray-700 mb-1">Código de Barras (EAN/GTIN)</label>
-                    <div className="relative">
+                  
+                  {/* 🌟 BLOCO DE CÓDIGOS DE BARRAS E CONVERSÃO */}
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
+                    <div>
+                      <label htmlFor="barcode" className="block text-sm font-bold text-gray-700 mb-1">Cód. Venda (EAN-13)</label>
                       <input
                         id="barcode"
                         type="text"
                         value={formData.barcode}
                         onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 font-mono tracking-wider pl-10"
-                        placeholder="Aponte o leitor ou digite o código numérico"
-                        autoFocus // Ajuda o usuário a já bipar direto ao abrir a página
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 font-mono"
+                        placeholder="Ex: 789..."
+                        autoFocus
                       />
-                      <span className="absolute left-3 top-2.5 text-gray-400 font-black">
-                      </span>
+                      <p className="text-[10px] text-gray-500 mt-1">Bipado no balcão (Unidade)</p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="purchaseBarcode" className="block text-sm font-bold text-gray-700 mb-1">Cód. NF (DUN-14)</label>
+                      <input
+                        id="purchaseBarcode"
+                        type="text"
+                        value={formData.purchaseBarcode}
+                        onChange={(e) => setFormData({ ...formData, purchaseBarcode: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 font-mono"
+                        placeholder="Ex: 1789..."
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1">Código da caixa master (Fornecedor)</p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="conversionFactor" className="block text-sm font-bold text-[#253289] mb-1">Fator de Conversão</label>
+                      <input
+                        id="conversionFactor"
+                        type="number"
+                        min="1"
+                        required
+                        value={formData.conversionFactor}
+                        onChange={(e) => setFormData({ ...formData, conversionFactor: e.target.value })}
+                        className="w-full px-4 py-2.5 border-2 border-blue-100 rounded-lg focus:border-[#253289] outline-none text-gray-900 font-black text-center"
+                        placeholder="1"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1">Unidades dentro de 1 caixa</p>
                     </div>
                   </div>
 
@@ -247,7 +284,7 @@ export default function NovoProductPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">Estoque Inicial</label>
+                    <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">Estoque Inicial (Unidades)</label>
                     <input
                       id="stock"
                       type="number"

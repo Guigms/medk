@@ -62,7 +62,10 @@ model User {
   orders        Order[]
   loyaltyPoints LoyaltyPoints?
   reminders     Reminder[]
-  statusHistory OrderStatusHistory[] // 🌟 ADICIONADO
+  statusHistory OrderStatusHistory[]
+  commissionRate Decimal        @default(0) @db.Decimal(5, 2)
+  ordersSold     Order[]        @relation("SellerOrders")
+  commissions    CommissionRecord[]
 
   @@map("users")
 }
@@ -86,6 +89,8 @@ model Product {
   id                   String         @id @default(cuid())
   name                 String
   barcode              String?        @unique
+  purchaseBarcode      String?        @unique
+  conversionFactor     Int            @default(1)
   brand                String?
   description          String         @db.Text
   price                Decimal        @db.Decimal(10, 2)
@@ -198,6 +203,9 @@ model Order {
   observation     String?
   changeFor       String?
   source          OrderSource @default(ONLINE)
+  sellerId        String?
+  seller          User?       @relation("SellerOrders", fields: [sellerId], references: [id])
+  commissionRecord CommissionRecord?
 
   user          User?                @relation(fields: [userId], references: [id])
   coupon        Coupon?              @relation(fields: [couponId], references: [id])
@@ -352,4 +360,20 @@ model OrderStatusHistory {
   @@index([orderId])
   @@index([userId])
   @@map("order_status_history")
+}
+
+model CommissionRecord {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  sellerId    String
+  amount      Decimal  @db.Decimal(10, 2)
+  percentage  Decimal  @db.Decimal(5, 2)
+  status      String   @default("PENDING") // PENDING (Pendente) ou PAID (Pago)
+  createdAt   DateTime @default(now())
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@map("commission_records")
 }

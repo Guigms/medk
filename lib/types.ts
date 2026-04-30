@@ -51,11 +51,14 @@ export interface Testimonial {
   date: string;
 }
 
+export type Role = 'USER' | 'ADMIN' | 'ATTENDANT';
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: Role; // Agora aceita ADMIN, ATTENDANT e USER
+  commissionRate?: number; // Adicionei este campo caso precise usar no front
 }
 
 export interface DeliveryOption {

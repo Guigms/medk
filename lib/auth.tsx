@@ -1,4 +1,3 @@
-// Simple auth context for admin panel
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -13,21 +12,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Usuário mockado para demonstração
-const MOCK_ADMIN = {
-  id: '1',
-  email: 'admin@medk.com',
-  name: 'Administrador',
-  role: 'admin' as const,
-  password: 'admin123' // Em produção, isso seria criptografado
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in (from localStorage)
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -36,14 +25,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulação de autenticação - em produção seria uma chamada de API
-    if (email === MOCK_ADMIN.email && password === MOCK_ADMIN.password) {
-      const { password: _, ...userWithoutPassword } = MOCK_ADMIN;
-      setUser(userWithoutPassword);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) return false;
+
+      const userData = await response.json();
+      
+      // Armazena no estado e no localStorage
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       return true;
+    } catch (error) {
+      console.error("Erro de login:", error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {

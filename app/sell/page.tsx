@@ -8,14 +8,13 @@ import { ShoppingCart, Search, Trash2, CreditCard, CheckCircle } from 'lucide-re
 
 export default function SellPage() {
   const [mounted, setMounted] = useState(false);
-  const { logout } = useAuth();
+  const { user, logout } = useAuth(); 
   
   const [products, setProducts] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // 🌟 NOVO ESTADO: Controla a animação de sucesso
   const [showSuccess, setShowSuccess] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +110,7 @@ export default function SellPage() {
       total: total,
       deliveryOption: 'PICKUP',
       source: 'COUNTER',
+      userId: user?.id, 
     };
 
     try {
@@ -121,11 +121,9 @@ export default function SellPage() {
       });
 
       if (res.ok) {
-        // 🌟 GATILHO DA ANIMAÇÃO DE SUCESSO
         setShowSuccess(true);
-        setCart([]); // Limpa o carrinho imediatamente por trás
+        setCart([]); 
         
-        // Remove a animação automaticamente após 2.5 segundos e foca no leitor
         setTimeout(() => {
           setShowSuccess(false);
           searchInputRef.current?.focus();
@@ -152,7 +150,13 @@ export default function SellPage() {
             <h1 className="text-2xl font-black text-[#253289] flex items-center gap-2">
               <ShoppingCart size={28} /> MedK • Frente de Caixa
             </h1>
-            <button onClick={() => logout()} className="text-gray-500 hover:text-red-600 transition-colors font-bold px-4 py-2 rounded-lg hover:bg-red-50">Sair do Sistema</button>
+            <div className="flex items-center gap-4">
+              {/* 🌟 MOSTRA O NOME DO CAIXA (Opcional, bom para UX) */}
+              <span className="text-sm font-bold text-gray-500 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+                👤 {user?.name || 'Caixa'}
+              </span>
+              <button onClick={() => logout()} className="text-gray-500 hover:text-red-600 transition-colors font-bold px-4 py-2 rounded-lg hover:bg-red-50">Sair do Sistema</button>
+            </div>
           </div>
 
           <div className="relative mb-6 flex-shrink-0">

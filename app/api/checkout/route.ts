@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
       deliveryFee = 0,
       observation,
       changeFor,
-      source = 'ONLINE'
+      source = 'ONLINE',
+      userId 
     } = body;
 
     // 1. Verificação de Receita
@@ -32,7 +33,15 @@ export async function POST(request: NextRequest) {
     const calculatedTotal = calculatedSubtotal + safeDeliveryFee;
     const orderNumber = Math.floor(100000 + Math.random() * 900000);
 
-    // 3. EXECUÇÃO DA TRANSAÇÃO
+    let seller = null;
+    if (userId) {
+      seller = await prisma.user.findUnique({ 
+        where: { id: userId },
+        select: { commissionRate: true } // Trazemos apenas o que importa para ficar leve
+      });
+    }
+
+
     const result = await prisma.$transaction(async (tx) => {
       
       const newOrder = await tx.order.create({
@@ -51,6 +60,8 @@ export async function POST(request: NextRequest) {
           changeFor: changeFor ? String(changeFor) : null,
           source: source,
           status: source === 'COUNTER' ? 'COMPLETED' : 'PENDING',
+          sellerId: userId || null, 
+
           orderItems: {
             create: items.map((item: any) => ({
               productId: item.product?.id || item.id,
@@ -60,6 +71,20 @@ export async function POST(request: NextRequest) {
           }
         }
       });
+
+      if (source === 'COUNTER' && userId && seller && Number(seller.commissionRate) > 0) {
+        const commissionAmount = calculatedTotal * (Number(seller.commissionRate) / 100);
+
+        await tx.commissionRecord.create({
+          data: {
+            orderId: newOrder.id,
+            sellerId: userId,
+            amount: commissionAmount,
+            percentage: seller.commissionRate,
+            status: 'PENDING' // Fica pendente para você pagar no final do mês
+          }
+        });
+      }
 
       // 4. BAIXA DE ESTOQUE E VERIFICAÇÃO DE ALERTA
       for (const item of items) {
@@ -71,7 +96,6 @@ export async function POST(request: NextRequest) {
           data: { stock: { decrement: qtyToSubtract } }
         });
 
-        // 🌟 AGORA FUNCIONARÁ: O Prisma reconhece tx.stockAlert
         if (updatedProduct.stock <= updatedProduct.minStock) {
           await tx.stockAlert.create({
             data: {

@@ -38,11 +38,29 @@ export async function PUT(
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: {
+        // Dados Básicos
         name: body.name,
-        description: body.description,
+        brand: body.brand || null,
+        description: body.description || null,
+        categoryId: body.categoryId || null,
+        
+        // Preço e Estoque
         price: Number(body.price),
         discount: body.discount ? Number(body.discount) : 0,
-        categoryId: body.categoryId,
+        stock: body.stock ? Number(body.stock) : 0,
+        
+        // Imagem
+        image: body.image || null,
+        
+        // Regras de Negócio e Switches
+        available: Boolean(body.available),
+        featured: Boolean(body.featured),
+        requiresPrescription: Boolean(body.requiresPrescription),
+        
+        // Códigos e Fator de Conversão
+        barcode: body.barcode || null,
+        purchaseBarcode: body.purchaseBarcode || null,
+        conversionFactor: body.conversionFactor ? Number(body.conversionFactor) : 1,
       },
     });
 

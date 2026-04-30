@@ -1,89 +1,43 @@
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'; // Desliga o cache!
+
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// 1. GET - Busca todos os alertas de estoque não lidos
 export async function GET() {
   try {
-    const alerts = await prisma.stockAlert.findMany({
-      where: { isRead: false },
-      include: { 
-        product: { 
-          select: { 
-            name: true, 
-            image: true,
-            stock: true,
-            minStock: true 
-          } 
-        } 
+    // 🌟 Define quando o sistema deve avisar que está acabando
+    const ESTOQUE_CRITICO = 5;
+
+    // Busca diretamente na fonte da verdade: a tabela de Produtos
+    const produtosCriticos = await prisma.product.findMany({
+      where: {
+        stock: {
+          lte: ESTOQUE_CRITICO // Menor ou igual a 5
+        },
+        available: true // Só alerta de produtos que estão ativos para venda
       },
-      orderBy: { createdAt: 'desc' }
+      select: {
+        id: true,
+        name: true,
+        stock: true,
+        updatedAt: true
+      },
+      orderBy: {
+        stock: 'asc' // Mostra os piores primeiro (ex: os zerados no topo)
+      }
     });
 
-    return NextResponse.json(alerts);
+    // Formata o resultado para o seu Dashboard entender perfeitamente
+    const alertasDinamicos = produtosCriticos.map(produto => ({
+      id: produto.id,
+      message: `Estoque crítico: ${produto.name} (Restam ${produto.stock} un)`,
+      createdAt: produto.updatedAt // Mostra a data da última vez que o estoque foi mexido
+    }));
+
+    return NextResponse.json(alertasDinamicos);
+
   } catch (error) {
-    console.error("Erro ao buscar alertas:", error);
-    return NextResponse.json({ error: 'Erro ao buscar alertas' }, { status: 500 });
-  }
-}
-
-// 2. PATCH - Marcar um ou TODOS os alertas como lidos
-export async function PATCH(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { id, all } = body;
-
-    // Funcionalidade: Marcar todos como lidos de uma vez
-    if (all === true) {
-      await prisma.stockAlert.updateMany({
-        where: { isRead: false },
-        data: { isRead: true }
-      });
-      return NextResponse.json({ success: true, message: 'Todos os alertas foram marcados como lidos' });
-    }
-
-    // Funcionalidade: Marcar apenas um alerta específico
-    if (!id) {
-      return NextResponse.json({ error: 'ID do alerta é obrigatório' }, { status: 400 });
-    }
-
-    await prisma.stockAlert.update({
-      where: { id },
-      data: { isRead: true }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro ao atualizar alerta:", error);
-    return NextResponse.json({ error: 'Erro ao atualizar alerta' }, { status: 500 });
-  }
-}
-
-// 3. DELETE - Excluir alertas lidos ou específicos
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    const clearRead = searchParams.get('clearRead');
-
-    // Funcionalidade: Limpar permanentemente todos os alertas que já foram lidos
-    if (clearRead === 'true') {
-      const deleted = await prisma.stockAlert.deleteMany({
-        where: { isRead: true }
-      });
-      return NextResponse.json({ success: true, count: deleted.count });
-    }
-
-    // Funcionalidade: Excluir um alerta específico por ID
-    if (id) {
-      await prisma.stockAlert.delete({
-        where: { id }
-      });
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ error: 'Parâmetro de exclusão inválido' }, { status: 400 });
-  } catch (error) {
-    console.error("Erro ao excluir alerta:", error);
-    return NextResponse.json({ error: 'Erro ao excluir alerta' }, { status: 500 });
+    console.error("Erro ao gerar alertas dinâmicos:", error);
+    return NextResponse.json({ error: 'Erro ao gerar alertas' }, { status: 500 });
   }
 }
