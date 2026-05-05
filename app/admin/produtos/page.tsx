@@ -245,7 +245,7 @@ export default function ProdutosAdminPage() {
                     <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                             {product.image ? <img src={product.image} className="w-full h-full object-cover" /> : <span className="text-xl">💊</span>}
                           </div>
                           <div>
@@ -381,7 +381,7 @@ export default function ProdutosAdminPage() {
               </div>
 
               <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex gap-4">
-                <button onClick={handleSaveEdit} disabled={isSubmitting} className="flex-[2] bg-[#253289] text-white py-4 rounded-2xl hover:bg-[#1a2461] transition-all font-black shadow-lg shadow-blue-200 flex justify-center items-center gap-2">
+                <button onClick={handleSaveEdit} disabled={isSubmitting} className="flex-2 bg-[#253289] text-white py-4 rounded-2xl hover:bg-[#1a2461] transition-all font-black shadow-lg shadow-blue-200 flex justify-center items-center gap-2">
                   {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Save size={20}/> Salvar Alterações</>}
                 </button>
                 <button onClick={() => setIsEditModalOpen(false)} className="flex-1 bg-white text-gray-500 py-4 rounded-2xl hover:bg-gray-100 transition-all font-bold border border-gray-200 text-sm">

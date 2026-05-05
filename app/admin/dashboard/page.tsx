@@ -8,11 +8,11 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { 
   LayoutDashboard, Package, CheckCircle, FileText, 
   MousePointer2, Bell, Check, TrendingUp, Users, 
-  ShoppingCart
+  ShoppingCart, DollarSign, BarChart3
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth(); // 🌟 Pegamos o usuário logado para verificar o cargo
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   const [stockAlerts, setStockAlerts] = useState<any[]>([]);
@@ -22,7 +22,6 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // 🌟 CORREÇÃO: Adicionamos o { cache: 'no-store' } para forçar o carregamento em tempo real
       const [alertsRes, statsRes] = await Promise.all([
         fetch('/api/admin/alerts', { cache: 'no-store' }),
         fetch('/api/analytics', { cache: 'no-store' }) 
@@ -68,7 +67,6 @@ export default function DashboardPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
@@ -90,8 +88,6 @@ export default function DashboardPage() {
         </header>
 
         <main className="container mx-auto px-4 py-8">
-          
-          {/* Alertas de Estoque */}
           {stockAlerts.length > 0 && (
             <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
               <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl shadow-sm">
@@ -106,11 +102,7 @@ export default function DashboardPage() {
                         <p className="text-sm font-bold text-gray-900">{alert.message}</p>
                         <p className="text-[10px] text-gray-400 uppercase mt-1">Registrado em: {new Date(alert.createdAt).toLocaleString()}</p>
                       </div>
-                      <button 
-                        onClick={() => markAsRead(alert.id)}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                        title="Marcar como resolvido"
-                      >
+                      <button onClick={() => markAsRead(alert.id)} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all">
                         <Check size={20} />
                       </button>
                     </div>
@@ -120,7 +112,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard title="Total de Produtos" value={stats?.totalProducts || 0} icon={<Package className="text-blue-600" />} />
             <StatCard title="Ativos no Site" value={stats?.availableProducts || 0} icon={<CheckCircle className="text-green-600" />} color="text-green-600" />
@@ -129,29 +120,27 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Top Products */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
               <h2 className="text-lg font-black mb-6 text-gray-900 flex items-center gap-2">
                 <TrendingUp size={20} className="text-blue-600" /> Produtos em Alta
               </h2>
               <div className="space-y-4">
-                {stats?.topProducts?.map((product: any, index: number) => (
+                {stats?.topProductsByClicks?.map((product: any, index: number) => (
                   <div key={product.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all">
                     <div className="w-10 h-10 bg-[#253289] text-white rounded-xl flex items-center justify-center font-black">{index + 1}</div>
                     <div className="flex-1">
                       <div className="font-bold text-gray-900">{product.name}</div>
                       <div className="text-xs text-gray-500">{product.category?.name}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-black text-[#253289]">{product.clicks}</div>
-                      <div className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Cliques</div>
+                    <div className="text-right text-[#253289]">
+                      <div className="font-black">{product.clicks}</div>
+                      <div className="text-[10px] text-gray-400 uppercase font-bold">Cliques</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Ações Rápidas */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
               <h2 className="text-lg font-black mb-6 text-gray-900">Ações Rápidas</h2>
               <div className="flex flex-col gap-3">
@@ -159,18 +148,26 @@ export default function DashboardPage() {
                 <QuickActionButton href="/admin/produtos" label="Gerenciar Estoque" color="bg-[#253289]" icon={<LayoutDashboard size={18}/>} />
                 <QuickActionButton href="/sell" label="Registrar Vendas" color="bg-green-700" icon={<ShoppingCart size={18}/>} />
                 
-                {/* 🌟 BOTÕES EXCLUSIVOS PARA ADMINISTRADOR */}
+                <QuickActionButton 
+                  href={user?.role === 'ADMIN' ? '/admin/commissions' : '/admin/my-commissions'} 
+                  label={user?.role === 'ADMIN' ? 'Gerenciar Comissões' : 'Minhas Comissões'} 
+                  color="bg-indigo-600" 
+                  icon={<DollarSign size={18}/>} 
+                />
+                
+                {/* 🌟 NOVA CENTRAL DE RELATÓRIOS */}
                 {user?.role === 'ADMIN' && (
-                  <>
-                    <QuickActionButton href="/admin/analytics" label="Relatórios Financeiros" color="bg-emerald-600" icon={<TrendingUp size={18}/>} />
-                    <QuickActionButton href="/admin/users" label="Gerenciar Equipe" color="bg-purple-600" icon={<Users size={18}/>} />
-                  </>
+                  <QuickActionButton 
+                    href="/admin/reports" 
+                    label="Relatórios" 
+                    color="bg-emerald-600" 
+                    icon={<FileText size={18}/>} 
+                  />
                 )}
 
-                <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <p className="text-xs text-blue-800 font-bold mb-1 italic">Dica do Sistema:</p>
-                  <p className="text-[11px] text-blue-600">Mantenha os preços e estoque sempre atualizados para evitar cancelamentos no checkout.</p>
-                </div>
+                {user?.role === 'ADMIN' && (
+                  <QuickActionButton href="/admin/users" label="Gerenciar Equipe" color="bg-purple-600" icon={<Users size={18}/>} />
+                )}
               </div>
             </div>
           </div>
@@ -180,7 +177,6 @@ export default function DashboardPage() {
   );
 }
 
-// Componentes Auxiliares
 function StatCard({ title, value, icon, color = "text-gray-900" }: any) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">

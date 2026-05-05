@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       prisma.product.count(),
       prisma.product.count({ where: { available: true } }),
       prisma.product.count({ where: { requiresPrescription: true } }),
-      prisma.productClick.count() // 🌟 Agora conta cliques reais do banco
+      prisma.productClick.count({ where: { clickedAt: { gte: startDate, lte: endDate } } })
     ]);
 
     // 3. Dados do Gráfico de Vendas
@@ -75,19 +75,20 @@ export async function GET(request: NextRequest) {
        return new Date(`2026-${monthA}-${dayA}`).getTime() - new Date(`2026-${monthB}-${dayB}`).getTime();
     });
 
-    // 4. Gestão de Estoque e Alertas (Usando a nova tabela StockAlert)
+    // 4. Gestão de Estoque e Alertas
     const criticalCount = await prisma.stockAlert.count({ where: { isRead: false } });
     
     const lowStockItems = await prisma.product.findMany({
-      where: { stock: { lte: prisma.product.fields.minStock } }, // Comparação dinâmica
+      where: { stock: { lte: prisma.product.fields.minStock } }, 
       select: { id: true, name: true, stock: true, minStock: true, category: { select: { name: true } } },
       orderBy: { stock: 'asc' },
       take: 5
     });
 
-    // 5. 🌟 NOVO: Produtos Mais Clicados (Para o Dashboard)
+    // 5A. Produtos Mais Clicados (Para o Dashboard)
     const topClicksRaw = await prisma.productClick.groupBy({
       by: ['productId'],
+      where: { clickedAt: { gte: startDate, lte: endDate } },
       _count: { productId: true },
       orderBy: { _count: { productId: 'desc' } },
       take: 5
@@ -108,6 +109,36 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // 5B. Top 5 Produtos por Receita Real (Vendas) para o Gráfico
+    const orderItemsForRevenue = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          createdAt: { gte: startDate, lte: endDate },
+          status: { in: ['COMPLETED', 'DELIVERING', 'CONFIRMED'] },
+        }
+      },
+      include: { product: true }
+    });
+
+    const revenueMap = new Map();
+    orderItemsForRevenue.forEach(item => {
+      const prodId = item.productId;
+      const itemRevenue = Number(item.price) * item.quantity;
+      
+      if (!revenueMap.has(prodId)) {
+        revenueMap.set(prodId, { 
+          id: prodId, 
+          name: item.product?.name || 'Produto Removido', 
+          revenue: 0 
+        });
+      }
+      revenueMap.get(prodId).revenue += itemRevenue;
+    });
+
+    const topProductsByRevenue = Array.from(revenueMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
     // 6. Pedidos Recentes com Paginação
     const [recentOrders, totalRecentOrders] = await Promise.all([
       prisma.order.findMany({
@@ -122,9 +153,45 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
+    // 7. 🌟 NOVO: Vendas por Categoria e Canal (Origem)
+    const ordersWithDetails = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        status: { in: ['COMPLETED', 'DELIVERING', 'CONFIRMED'] },
+      },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              include: { category: true }
+            }
+          }
+        }
+      }
+    });
+
+    const categoryMap = new Map();
+    const sourceMap = new Map();
+
+    ordersWithDetails.forEach(order => {
+      // Cálculo por Canal (Site vs Balcão)
+      const orderRevenue = Number(order.totalAmount);
+      const sourceKey = order.source === 'ONLINE' ? 'Site (WhatsApp)' : 'Balcão (Loja)';
+      sourceMap.set(sourceKey, (sourceMap.get(sourceKey) || 0) + orderRevenue);
+
+      // Cálculo por Categoria (baseado nos itens dentro do pedido)
+      order.orderItems.forEach(item => {
+        const catName = item.product?.category?.name || 'Sem Categoria';
+        const itemTotal = Number(item.price) * item.quantity;
+        categoryMap.set(catName, (categoryMap.get(catName) || 0) + itemTotal);
+      });
+    });
+
+    const salesByCategory = Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
+    const salesBySource = Array.from(sourceMap.entries()).map(([name, value]) => ({ name, value }));
+
     return NextResponse.json({
       period: parseInt(periodParam || '30'),
-      // Resumo para os Cards Principais
       totalProducts,
       availableProducts,
       prescriptionProducts,
@@ -132,10 +199,13 @@ export async function GET(request: NextRequest) {
       summary: { totalOrders, totalRevenue, averageTicket },
       salesChart,
       inventory: {
-        criticalCount, // 🌟 Alertas reais não lidos
+        criticalCount, 
         items: lowStockItems.map(p => ({ ...p, categoryName: p.category?.name || 'Sem Categoria' }))
       },
-      topProducts: topProductsByClicks, // 🌟 Agora enviando cliques para o Dashboard
+      topProducts: topProductsByRevenue,       
+      topProductsByClicks: topProductsByClicks, 
+      salesByCategory, // 🌟 ADICIONADO PARA O GRÁFICO DE PIZZA
+      salesBySource,   // 🌟 ADICIONADO PARA O GRÁFICO DE PIZZA
       recentOrders: {
         items: recentOrders.map(o => ({ ...o, totalAmount: Number(o.totalAmount) })),
         pagination: {

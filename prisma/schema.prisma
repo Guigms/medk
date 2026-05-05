@@ -50,19 +50,19 @@ enum ReminderStatus {
 // --- MODELS ---
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  name          String
-  password      String
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String
+  password       String
+  role           Role           @default(USER)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  favorites     Favorite[]
-  orders        Order[]
-  loyaltyPoints LoyaltyPoints?
-  reminders     Reminder[]
-  statusHistory OrderStatusHistory[]
+  favorites      Favorite[]
+  orders         Order[]
+  loyaltyPoints  LoyaltyPoints?
+  reminders      Reminder[]
+  statusHistory  OrderStatusHistory[]
   commissionRate Decimal        @default(0) @db.Decimal(5, 2)
   ordersSold     Order[]        @relation("SellerOrders")
   commissions    CommissionRecord[]
@@ -112,7 +112,7 @@ model Product {
   productClick ProductClick[]
   batches      Batch[]
   reminders    Reminder[]
-  stockAlerts  StockAlert[]   // 🌟 ADICIONADO
+  stockAlerts  StockAlert[]   
 
   @@index([categoryId])
   @@map("products")
@@ -130,10 +130,14 @@ model Batch {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  nfeId        String?
+  nfeRecord    NfeRecord? @relation(fields: [nfeId], references: [id])
+
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@index([expiryDate])
+  @@index([nfeId])
   @@map("batches")
 }
 
@@ -204,13 +208,14 @@ model Order {
   changeFor       String?
   source          OrderSource @default(ONLINE)
   sellerId        String?
-  seller          User?       @relation("SellerOrders", fields: [sellerId], references: [id])
+  
+  seller           User?             @relation("SellerOrders", fields: [sellerId], references: [id])
   commissionRecord CommissionRecord?
 
   user          User?                @relation(fields: [userId], references: [id])
   coupon        Coupon?              @relation(fields: [couponId], references: [id])
   orderItems    OrderItem[]
-  statusHistory OrderStatusHistory[] // 🌟 ADICIONADO
+  statusHistory OrderStatusHistory[] 
 
   @@index([userId])
   @@index([status])
@@ -277,21 +282,21 @@ model PointTransaction {
 }
 
 model Coupon {
-  id            String       @id @default(cuid())
-  code          String       @unique
-  description   String
-  discountType  DiscountType
-  discountValue Decimal      @db.Decimal(10, 2)
-  minPurchase   Decimal?     @db.Decimal(10, 2)
-  maxDiscount   Decimal?     @db.Decimal(10, 2)
-  usageLimit    Int?
-  usageCount    Int          @default(0)
-  categoryId    String?
-  validFrom     DateTime
-  validUntil    DateTime
-  active        Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  code         String       @unique
+  description  String
+  discountType DiscountType
+  discountValue Decimal     @db.Decimal(10, 2)
+  minPurchase  Decimal?     @db.Decimal(10, 2)
+  maxDiscount  Decimal?     @db.Decimal(10, 2)
+  usageLimit   Int?
+  usageCount   Int          @default(0)
+  categoryId   String?
+  validFrom    DateTime
+  validUntil   DateTime
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   category Category? @relation(fields: [categoryId], references: [id])
   orders   Order[]
@@ -333,7 +338,6 @@ model SalesReport {
   @@map("sales_reports")
 }
 
-// 🌟 NOVOS MODELOS ADICIONADOS AQUI
 model StockAlert {
   id        String   @id @default(cuid())
   productId String
@@ -363,17 +367,32 @@ model OrderStatusHistory {
 }
 
 model CommissionRecord {
-  id          String   @id @default(cuid())
-  orderId     String   @unique
-  sellerId    String
-  amount      Decimal  @db.Decimal(10, 2)
-  percentage  Decimal  @db.Decimal(5, 2)
-  status      String   @default("PENDING") // PENDING (Pendente) ou PAID (Pago)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  sellerId   String
+  amount     Decimal  @db.Decimal(10, 2)
+  percentage Decimal  @db.Decimal(5, 2)
+  status     String   @default("PENDING") // PENDING ou PAID
+  createdAt  DateTime @default(now())
 
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  seller     User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
   @@index([sellerId])
   @@map("commission_records")
+}
+
+model NfeRecord {
+  id           String   @id @default(cuid())
+  accessKey    String   @unique
+  number       String
+  series       String?
+  issuerName   String
+  issueDate    DateTime
+  totalValue   Decimal  @db.Decimal(10, 2)
+  importedAt   DateTime @default(now())
+
+  batches      Batch[]
+
+  @@map("nfe_records")
 }

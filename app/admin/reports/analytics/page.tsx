@@ -5,10 +5,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
+  BarChart, Bar, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { formatPrice } from '@/lib/utils';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { Globe, Store, PieChart as PieIcon } from 'lucide-react';
+
+const COLORS = ['#253289', '#10BCEC', '#E5202A', '#F59E0B', '#10B981', '#8B5CF6'];
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -16,7 +19,6 @@ export default function AnalyticsPage() {
   
   const [period, setPeriod] = useState('30');
   const [customDates, setCustomDates] = useState({ start: '', end: '' });
-  // NOVO: Estado da página
   const [currentPage, setCurrentPage] = useState(1);
 
   const fetchData = async () => {
@@ -31,12 +33,10 @@ export default function AnalyticsPage() {
     setLoading(false);
   };
 
-  // Toda vez que o período ou a página mudar, refaz o fetch
   useEffect(() => {
     fetchData();
   }, [period, currentPage]);
 
-  // Se trocar o período, volta para a página 1
   const handlePeriodChange = (e: any) => {
     setPeriod(e.target.value);
     setCustomDates({start:'', end:''});
@@ -52,15 +52,15 @@ export default function AnalyticsPage() {
         <header className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <Link 
-              href="/admin/dashboard" 
+              href="/admin/reports" 
               className="text-[#253289] hover:text-[#1a2461] text-sm font-medium flex items-center gap-1 mb-2 transition-colors"
             >
-              ← Voltar ao Dashboard
+              ← Voltar à Central de Relatórios
             </Link>
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              Inteligência de Dados
+              Inteligência Geral
             </h1>
-            <p className="text-gray-500">Relatórios detalhados de vendas e estoque.</p>
+            <p className="text-gray-500">Relatórios detalhados de vendas, categorias e canais.</p>
           </div>
 
           {/* Filtros */}
@@ -81,7 +81,7 @@ export default function AnalyticsPage() {
                   <input type="date" className="border rounded-lg px-2 py-1 text-sm" onChange={(e) => setCustomDates({...customDates, start: e.target.value})} />
                   <span className="text-gray-400">até</span>
                   <input type="date" className="border rounded-lg px-2 py-1 text-sm" onChange={(e) => setCustomDates({...customDates, end: e.target.value})} />
-                  <button onClick={() => { setCurrentPage(1); fetchData(); }} className="bg-[#253289] text-white px-3 py-1 rounded-lg text-sm hover:bg-[#1a2461]">
+                  <button onClick={() => { setCurrentPage(1); fetchData(); }} className="bg-[#253289] text-white px-3 py-1 rounded-lg text-sm hover:bg-[#1a2461] transition-colors">
                     Filtrar
                   </button>
                 </div>
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* 2. GRÁFICOS */}
+        {/* 2. GRÁFICOS PRINCIPAIS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="text-lg font-bold mb-6 text-gray-800">Evolução de Vendas (Diária)</h2>
@@ -146,17 +146,99 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* 3. ESTOQUE E LISTA DE PEDIDOS */}
+        {/* 🌟 3. NOVA SEÇÃO: GRÁFICOS DE DISTRIBUIÇÃO E CANAIS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          
+          {/* Gráfico de Vendas por Categoria */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            <div className="flex items-center gap-2 mb-6">
+              <PieIcon className="text-[#253289]" size={20} />
+              <h2 className="text-lg font-bold text-gray-800">Vendas por Categoria</h2>
+            </div>
+            <div className="h-72 w-full flex-1">
+              {data.salesByCategory?.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.salesByCategory}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {data.salesByCategory.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => formatPrice(Number(value))} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">Sem dados de categorias.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Gráfico de Vendas por Canal (Origem) */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            <div className="flex items-center gap-2 mb-6">
+              <Globe className="text-[#10BCEC]" size={20} />
+              <h2 className="text-lg font-bold text-gray-800">Canais de Venda (Site vs Balcão)</h2>
+            </div>
+            
+            <div className="h-48 w-full">
+              {data.salesBySource?.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.salesBySource}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {data.salesBySource.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#253289' : '#10BCEC'} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => formatPrice(Number(value))} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400">Sem dados de origem.</div>
+              )}
+            </div>
+
+            {/* Resumo de Canais */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {data.salesBySource?.map((source: any, i: number) => (
+                <div key={i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {source.name.includes('Site') ? <Globe className="text-blue-500" size={16} /> : <Store className="text-emerald-500" size={16} />}
+                    <span className="font-bold text-gray-600 text-sm">{source.name}</span>
+                  </div>
+                  <span className="font-black text-[#253289]">{formatPrice(source.value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. ESTOQUE E LISTA DE PEDIDOS */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-red-100">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-red-700">Estoque Crítico (Abaixo de 5)</h2>
               <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold">
-                {data.inventory.criticalCount} itens
+                {data.inventory?.criticalCount || 0} itens
               </span>
             </div>
-            <div className="space-y-4 max-h-[400px] overflow-y-auto">
-              {data.inventory.items.length > 0 ? data.inventory.items.map((item: any) => (
+            <div className="space-y-4 max-h-100 overflow-y-auto">
+              {data.inventory?.items?.length > 0 ? data.inventory.items.map((item: any) => (
                 <div key={item.id} className="flex justify-between items-center border-b pb-2">
                   <div>
                     <p className="text-sm font-bold text-gray-800 line-clamp-1">{item.name}</p>
@@ -174,7 +256,7 @@ export default function AnalyticsPage() {
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">Histórico de Pedidos</h2>
-              <span className="text-xs text-gray-500">Mostrando pág {data.recentOrders.pagination.currentPage} de {data.recentOrders.pagination.totalPages || 1}</span>
+              <span className="text-xs text-gray-500">Mostrando pág {data.recentOrders?.pagination.currentPage} de {data.recentOrders?.pagination.totalPages || 1}</span>
             </div>
             
             <div className="overflow-x-auto flex-1">
@@ -188,7 +270,7 @@ export default function AnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {data.recentOrders.items.length > 0 ? data.recentOrders.items.map((order: any) => (
+                  {data.recentOrders?.items?.length > 0 ? data.recentOrders.items.map((order: any) => (
                     <tr key={order.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
                       <td className="py-3">
                         <div className="font-bold text-gray-900">#{order.orderNumber}</div>
@@ -220,7 +302,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* CONTROLES DE PAGINAÇÃO */}
-            {data.recentOrders.pagination.totalPages > 1 && (
+            {data.recentOrders?.pagination?.totalPages > 1 && (
               <div className="mt-4 pt-4 border-t flex justify-between items-center">
                 <button 
                   disabled={currentPage === 1 || loading}
@@ -234,7 +316,7 @@ export default function AnalyticsPage() {
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i + 1)}
-                      className={`w-8 h-8 rounded-lg text-sm font-bold ${
+                      className={`w-8 h-8 rounded-lg text-sm font-bold transition-colors ${
                         currentPage === i + 1 ? 'bg-[#253289] text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >

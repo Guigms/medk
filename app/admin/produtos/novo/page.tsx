@@ -399,7 +399,7 @@ export default function NovoProductPage() {
                         onChange={(e) => setFormData({ ...formData, requiresPrescription: e.target.checked })}
                         className="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors font-medium text-orange-600">⚠️ Requer Retenção de Receita</span>
+                      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors font-medium">⚠️ Requer Retenção de Receita</span>
                     </label>
                   </div>
                 </div>

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { xmlData } = await request.json();
 
     if (!xmlData) {
-      return NextResponse.json({ error: 'Nenhum dado XML fornecido' }, { status: 400 });
+      return NextResponse.json({ error: 'No XML data provided' }, { status: 400 });
     }
 
     const parser = new XMLParser({ ignoreAttributes: false });
@@ -15,96 +15,140 @@ export async function POST(request: NextRequest) {
 
     const nfe = jsonObj.nfeProc?.NFe?.infNFe;
     if (!nfe || !nfe.det) {
-      return NextResponse.json({ error: 'Formato de XML inválido ou não é uma NF-e' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid XML format or not an NF-e' }, { status: 400 });
     }
 
-    const itensNota = Array.isArray(nfe.det) ? nfe.det : [nfe.det];
+    // 1. Extract main NF-e data
+    const accessKey = jsonObj.nfeProc?.protNFe?.infProt?.chNFe || `${nfe.ide?.nNF}-${nfe.emit?.CNPJ}`;
+    const invoiceNumber = nfe.ide?.nNF;
+    const series = nfe.ide?.serie;
+    const issuerName = nfe.emit?.xNome;
+    const issueDate = nfe.ide?.dhEmi;
+    const totalValue = nfe.total?.ICMSTot?.vNF;
 
-    const resultados = {
-      sucesso: [] as any[],
-      naoEncontrado: [] as any[],
+    // 2. Block Duplicate Invoice
+    if (accessKey) {
+      const existingRecord = await prisma.nfeRecord.findUnique({
+        where: { accessKey: String(accessKey) }
+      });
+
+      if (existingRecord) {
+        return NextResponse.json({ 
+          status: 'DUPLICATE',
+          message: `A Nota Fiscal Nº ${invoiceNumber} já foi importada no dia ${existingRecord.importedAt.toLocaleDateString('pt-BR')}.`,
+          supplier: issuerName || 'Fornecedor'
+        });
+      }
+    }
+
+    const invoiceItems = Array.isArray(nfe.det) ? nfe.det : [nfe.det];
+
+    const results = {
+      success: [] as any[],
+      notFound: [] as any[],
     };
 
-    // Array que guardará as intenções de atualização (Só roda se tudo der certo)
-    const updatesToApply = [];
+    const validatedProducts: { productId: string; finalQuantity: number; finalUnitCost: number; }[] = [];
 
-    // PASSO 1: VALIDAÇÃO EM MEMÓRIA (Não salva nada no banco ainda)
-    for (const item of itensNota) {
+    // 3. Pre-validate all items (All or Nothing)
+    for (const item of invoiceItems) {
       const prod = item.prod;
-      const nomeNota = prod.xProd;
-      const eanNota = prod.cEAN !== 'SEM GTIN' ? String(prod.cEAN) : null;
-      const quantidadeNota = Math.floor(Number(prod.qCom));
+      const itemName = prod.xProd;
+      const ean = prod.cEAN !== 'SEM GTIN' ? String(prod.cEAN) : null;
+      const quantity = Math.floor(Number(prod.qCom));
+      const unitCost = Number(prod.vUnCom); 
 
-      if (!eanNota) {
-        resultados.naoEncontrado.push({ nome: nomeNota, ean: 'SEM CÓDIGO', qtdNota: quantidadeNota, motivo: 'Sem código de barras na nota' });
+      if (!ean) {
+        results.notFound.push({ 
+          name: itemName, 
+          ean: 'SEM CÓDIGO', 
+          quantity: quantity, 
+          reason: 'Sem código de barras na nota' 
+        });
         continue;
       }
 
-      const produtoNoBanco = await prisma.product.findFirst({
-        where: {
-          OR: [
-            { purchaseBarcode: eanNota },
-            { barcode: eanNota }
-          ]
-        }
+      const existingProduct = await prisma.product.findFirst({
+        where: { OR: [{ purchaseBarcode: ean }, { barcode: ean }] }
       });
 
-      if (produtoNoBanco) {
-        const isCaixaFechada = produtoNoBanco.purchaseBarcode === eanNota;
-        const fator = isCaixaFechada ? (produtoNoBanco.conversionFactor || 1) : 1;
-        const entradaReal = quantidadeNota * fator;
+      if (existingProduct) {
+        const isClosedBox = existingProduct.purchaseBarcode === ean;
+        const conversionFactor = isClosedBox ? (existingProduct.conversionFactor || 1) : 1;
+        const finalQuantity = quantity * conversionFactor;
+        const finalUnitCost = unitCost / conversionFactor;
 
-        resultados.sucesso.push({
-          nome: produtoNoBanco.name,
-          ean: eanNota,
-          qtdNota: quantidadeNota,
-          entradaReal: entradaReal,
-          isCaixaFechada
+        results.success.push({
+          name: existingProduct.name,
+          ean: ean,
+          quantity: quantity,
+          finalQuantity: finalQuantity,
+          isClosedBox
         });
 
-        // Guarda na fila de atualização
-        updatesToApply.push({
-          id: produtoNoBanco.id,
-          increment: entradaReal
+        validatedProducts.push({
+          productId: existingProduct.id,
+          finalQuantity,
+          finalUnitCost
         });
       } else {
-        resultados.naoEncontrado.push({
-          nome: nomeNota,
-          ean: eanNota,
-          qtdNota: quantidadeNota
+        results.notFound.push({ 
+          name: itemName, 
+          ean: ean, 
+          quantity: quantity 
         });
       }
     }
 
-    // PASSO 2: A REGRA DE NEGÓCIO DO "TUDO OU NADA"
-    if (resultados.naoEncontrado.length > 0) {
-      // Se tiver 1 item faltando, bloqueia a nota inteira.
+    if (results.notFound.length > 0) {
       return NextResponse.json({ 
         status: 'BLOCKED',
         message: 'A nota contém produtos não cadastrados.', 
-        resultados 
+        results 
       });
     }
 
-    // PASSO 3: EXECUÇÃO DA TRANSAÇÃO (Só chega aqui se a nota estiver 100% perfeita)
-    // Usa uma transação para garantir que todos os produtos recebam estoque ao mesmo tempo
-    await prisma.$transaction(
-      updatesToApply.map((update) => 
-        prisma.product.update({
-          where: { id: update.id },
-          data: { stock: { increment: update.increment } }
-        })
-      )
-    );
+    // 4. Execute Transaction
+    await prisma.$transaction(async (tx) => {
+      const nfeRecord = await tx.nfeRecord.create({
+        data: {
+          accessKey: String(accessKey),
+          number: String(invoiceNumber || 'S/N'),
+          series: series ? String(series) : null,
+          issuerName: issuerName ? String(issuerName) : 'Fornecedor Desconhecido',
+          issueDate: issueDate ? new Date(issueDate) : new Date(),
+          totalValue: Number(totalValue || 0)
+        }
+      });
+
+      for (const validated of validatedProducts) {
+        await tx.product.update({
+          where: { id: validated.productId },
+          data: { stock: { increment: validated.finalQuantity } }
+        });
+
+        await tx.batch.create({
+          data: {
+            productId: validated.productId,
+            nfeId: nfeRecord.id, 
+            batchNumber: nfeRecord.number,
+            quantity: validated.finalQuantity,
+            cost: validated.finalUnitCost,
+            purchaseDate: nfeRecord.issueDate,
+            expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 2)), 
+          }
+        });
+      }
+    });
 
     return NextResponse.json({ 
       status: 'SUCCESS',
-      message: 'Estoque atualizado com sucesso!', 
-      resultados 
+      message: 'Estoque atualizado e NF-e registrada com sucesso!', 
+      results 
     });
 
   } catch (error) {
-    console.error("Erro ao processar XML:", error);
-    return NextResponse.json({ error: 'Falha ao ler o arquivo XML' }, { status: 500 });
+    console.error("Error processing XML:", error);
+    return NextResponse.json({ error: 'Failed to read XML file' }, { status: 500 });
   }
 }

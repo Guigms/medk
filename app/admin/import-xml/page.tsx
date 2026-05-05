@@ -6,19 +6,19 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
 import { UploadCloud, FileText, CheckCircle, AlertCircle, LayoutDashboard, ShieldAlert, CheckCircle2, Package } from 'lucide-react';
 
-type ImportStatus = 'IDLE' | 'PROCESSING' | 'SUCCESS' | 'BLOCKED';
+type ImportStatus = 'IDLE' | 'PROCESSING' | 'SUCCESS' | 'BLOCKED' | 'DUPLICATE';
 
 export default function ImportarXmlPage() {
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<ImportStatus>('IDLE');
-  const [relatorio, setRelatorio] = useState<any | null>(null);
+  const [report, setReport] = useState<any | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
       setStatus('IDLE');
-      setRelatorio(null);
+      setReport(null);
     }
   };
 
@@ -32,8 +32,7 @@ export default function ImportarXmlPage() {
       
       reader.onload = async (e) => {
         const xmlContent = e.target?.result as string;
-
-        // Simulando um tempo de processamento para melhor UX
+        
         setTimeout(async () => {
           const response = await fetch('/api/stock/import-xml', {
             method: 'POST',
@@ -44,17 +43,20 @@ export default function ImportarXmlPage() {
           const data = await response.json();
           
           if (response.ok) {
-            setRelatorio(data.resultados);
+            setReport(data.results || data); 
+            
             if (data.status === 'BLOCKED') {
               setStatus('BLOCKED');
             } else if (data.status === 'SUCCESS') {
               setStatus('SUCCESS');
+            } else if (data.status === 'DUPLICATE') {
+              setStatus('DUPLICATE');
             }
           } else {
             alert(`Erro: ${data.error}`);
             setStatus('IDLE');
           }
-        }, 1500); // 1.5s de delay simulado para a tela de loading aparecer
+        }, 1500); 
       };
 
       reader.readAsText(file);
@@ -75,13 +77,12 @@ export default function ImportarXmlPage() {
               ← Voltar para Produtos
             </Link>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight">Importação de NF-e (XML)</h1>
-            <p className="text-sm text-gray-500">Regra de Segurança: A nota só será importada se 100% dos produtos estiverem cadastrados.</p>
+            <p className="text-sm text-gray-500">Regra de Segurança: A nota só será importada se 100% dos produtos estiverem cadastrados e a nota for inédita.</p>
           </div>
         </header>
 
         <main className="container mx-auto px-4 py-8 max-w-4xl">
           
-          {/* TELA 1: UPLOAD (Quando está IDLE) */}
           {status === 'IDLE' && (
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200 text-center animate-in fade-in">
               <div className="w-20 h-20 bg-blue-50 text-[#253289] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -110,7 +111,6 @@ export default function ImportarXmlPage() {
             </div>
           )}
 
-          {/* TELA 2: PROCESSANDO */}
           {status === 'PROCESSING' && (
             <div className="bg-white p-16 rounded-3xl shadow-sm border border-gray-200 text-center flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
               <div className="w-20 h-20 border-4 border-blue-100 border-t-[#253289] rounded-full animate-spin mb-8 shadow-inner"></div>
@@ -122,8 +122,28 @@ export default function ImportarXmlPage() {
             </div>
           )}
 
-          {/* TELA 3: BLOQUEADO (Regra de Negócio não atendida) */}
-          {status === 'BLOCKED' && relatorio && (
+          {status === 'DUPLICATE' && report && (
+            <div className="bg-amber-50 p-12 rounded-3xl shadow-sm border-2 border-amber-200 text-center animate-in zoom-in-95">
+              <ShieldAlert className="text-amber-500 mx-auto mb-4" size={64} />
+              <h2 className="text-3xl font-black text-amber-900 mb-4">Nota Fiscal Duplicada!</h2>
+              <p className="text-amber-800 font-medium text-lg mb-2">
+                {report.message}
+              </p>
+              {report.supplier && (
+                <div className="mt-6 pt-6 border-t border-amber-200/50 inline-block">
+                  <p className="text-amber-700 text-sm uppercase tracking-widest font-bold mb-1">Fornecedor</p>
+                  <p className="text-amber-900 font-black text-xl">{report.supplier}</p>
+                </div>
+              )}
+              <div className="mt-8">
+                <button onClick={() => { setStatus('IDLE'); setFile(null); }} className="bg-white text-amber-700 font-black px-8 py-3 rounded-xl border-2 border-amber-300 hover:bg-amber-100 transition-colors shadow-sm">
+                  Importar Outro Arquivo
+                </button>
+              </div>
+            </div>
+          )}
+
+          {status === 'BLOCKED' && report && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="bg-red-50 p-8 rounded-3xl shadow-sm border-2 border-red-200 text-center">
                 <ShieldAlert className="text-red-500 mx-auto mb-4" size={56} />
@@ -151,10 +171,10 @@ export default function ImportarXmlPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {relatorio.naoEncontrado.map((item: any, i: number) => (
+                      {report.notFound.map((item: any, i: number) => (
                         <tr key={i} className="hover:bg-red-50/30 transition-colors">
-                          <td className="px-6 py-4 font-bold text-gray-800">{item.nome}</td>
-                          <td className="px-6 py-4 font-mono text-gray-500">{item.ean || item.motivo}</td>
+                          <td className="px-6 py-4 font-bold text-gray-800">{item.name}</td>
+                          <td className="px-6 py-4 font-mono text-gray-500">{item.ean || item.reason}</td>
                           <td className="px-6 py-4 text-center">
                             <Link href="/admin/produtos/novo" className="text-xs font-black text-[#253289] bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 border border-blue-100">
                               Cadastrar
@@ -169,8 +189,7 @@ export default function ImportarXmlPage() {
             </div>
           )}
 
-          {/* TELA 4: SUCESSO */}
-          {status === 'SUCCESS' && relatorio && (
+          {status === 'SUCCESS' && report && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="bg-emerald-500 p-8 rounded-3xl shadow-lg shadow-emerald-200 text-center text-white">
                 <CheckCircle2 className="mx-auto mb-4 opacity-90" size={64} />
@@ -193,7 +212,7 @@ export default function ImportarXmlPage() {
                     <h3 className="font-black text-gray-900">Resumo da Operação</h3>
                   </div>
                   <span className="text-xs font-bold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full border border-emerald-100">
-                    {relatorio.sucesso.length} itens recebidos
+                    {report.success.length} itens recebidos
                   </span>
                 </div>
                 <div className="p-0 overflow-x-auto">
@@ -207,16 +226,16 @@ export default function ImportarXmlPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {relatorio.sucesso.map((item: any, i: number) => (
+                      {report.success.map((item: any, i: number) => (
                         <tr key={i} className="hover:bg-emerald-50/30 transition-colors">
-                          <td className="px-6 py-4 font-bold text-gray-900">{item.nome}</td>
+                          <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
                           <td className="px-6 py-4 text-center font-mono text-gray-500">{item.ean}</td>
-                          <td className="px-6 py-4 text-center text-gray-600">{item.qtdNota} un</td>
+                          <td className="px-6 py-4 text-center text-gray-600">{item.quantity} un</td>
                           <td className="px-6 py-4 text-center">
                             <span className="font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100">
-                              + {item.entradaReal} un
+                              + {item.finalQuantity} un
                             </span>
-                            {item.isCaixaFechada && <span className="block text-[10px] text-emerald-500 mt-1.5 font-bold uppercase">Fator x Aplicado</span>}
+                            {item.isClosedBox && <span className="block text-[10px] text-emerald-500 mt-1.5 font-bold uppercase">Fator x Aplicado</span>}
                           </td>
                         </tr>
                       ))}
