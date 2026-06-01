@@ -6,6 +6,7 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
+    // 1. Busca o usuário
     const user = await prisma.user.findUnique({
       where: { email }
     });
@@ -20,19 +21,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
     }
 
-    // 🌟 FORÇANDO O RETORNO EXPLÍCITO DO OBJETO
-    // Garantimos que o role seja retornado exatamente como está no banco (ex: "ADMIN")
+    // 2. Busca as configurações e módulos liberados da farmácia
+    const storeConfig = await prisma.storeConfig.findFirst();
+
+    // 3. Monta o Payload completo com TODOS os módulos
     const userPayload = {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role, // Certifique-se de que isso está sendo passado
+      role: user.role, 
+      
+      // ⚡ AGORA SIM: Todas as flags SaaS estão aqui
+      moduleCommissions: storeConfig?.moduleCommissions || false,
+      moduleNfeReport: storeConfig?.moduleNfeReport || false,
+      moduleMargin: storeConfig?.moduleMargin || false,
+      moduleTurnover: storeConfig?.moduleTurnover || false,
+      moduleAbcCurve: storeConfig?.moduleAbcCurve || false,
+      moduleXmlImport: storeConfig?.moduleXmlImport || false,
+      moduleSeasonality: storeConfig?.moduleSeasonality || false,
     };
 
-    console.log("API Logando usuario:", userPayload); // Verifique o terminal do servidor
+    console.log("API Logando usuario:", userPayload);
 
     return NextResponse.json(userPayload);
   } catch (error) {
+    console.error("Erro no login:", error);
     return NextResponse.json({ error: 'Erro interno ao autenticar' }, { status: 500 });
   }
 }

@@ -59,6 +59,13 @@ export interface User {
   name: string;
   role: Role; // Agora aceita ADMIN, ATTENDANT e USER
   commissionRate?: number; // Adicionei este campo caso precise usar no front
+  moduleMargin?: boolean;
+  moduleTurnover?: boolean;
+  moduleAbcCurve?: boolean;
+  moduleXmlImport?: boolean;
+  moduleSeasonality?: boolean;
+  moduleCommissions?: boolean;
+  moduleNfeReport?: boolean;
 }
 
 export interface DeliveryOption {

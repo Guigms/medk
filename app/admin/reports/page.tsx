@@ -1,69 +1,110 @@
 'use client';
 
+import { useAuth } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { 
-  TrendingUp, PieChart, RefreshCw, BarChart3, 
-  ChevronRight, AlertTriangle, Target, Info, 
-  FileText
-} from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Percent, ArrowDownUp, FileSpreadsheet, Calendar } from 'lucide-react';
 
-export default function RelatoriosPage() {
+export default function CentralRelatoriosPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  // 🛡️ Validação da Chave Mestre (SuperAdmin ignora os bloqueios da loja)
+  const isSuperAdmin = user?.role?.toUpperCase() === 'SUPER_ADMIN';
+  const isAdmin = user?.role?.toUpperCase() === 'ADMIN' || isSuperAdmin;
+
+  // ⚡ Regras de visibilidade atualizadas com o novo padrão e nomes corretos
+  const showMargem = isSuperAdmin || user?.moduleMargin === true;
+  const showGiro = isSuperAdmin || user?.moduleTurnover === true;
+  const showCurvaABC = isSuperAdmin || user?.moduleAbcCurve === true;
+  
+  // 🎯 CORREÇÃO: Agora escuta a flag moduleNfeReport correta!
+  const showNF = isSuperAdmin || user?.moduleNfeReport === true; 
+  
+  const showSazonal = isSuperAdmin || user?.moduleSeasonality === true;
+
+  // Expulsa usuários que não sejam administradores
+  if (!user || !isAdmin) return null;
+
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-        <header className="mb-8">
-          <Link href="/admin/dashboard" className="text-[#253289] hover:underline text-sm font-bold flex items-center gap-1 mb-2">
-            ← Voltar ao Dashboard
-          </Link>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Central de Relatórios</h1>
-          <p className="text-gray-500">Dados fundamentais para o crescimento da Medk.</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 md:p-8 transition-colors duration-300">
+        
+        {/* CABEÇALHO */}
+        <header className="mb-8 flex items-center gap-4">
+          <button 
+            onClick={() => router.back()} 
+            className="p-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:text-[#253289] dark:hover:text-blue-400 rounded-xl shadow-sm transition-all cursor-pointer"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Central de Relatórios</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Selecione uma análise detalhada do sistema</p>
+          </div>
         </header>
 
+        {/* GRADE DE RELATÓRIOS CONDICIONAIS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
-          {/* 1. MARGEM DE LUCRO */}
-          <ReportCard 
-            title="Margem de Lucro"
-            description="Visualize o lucro real por produto comparando custos e vendas."
-            icon={<PieChart className="text-red-600" />}
-            href="/admin/reports/margin"
-            fields={['Custo', 'Preço Venda', 'Margem %', 'Margem R$']}
-          />
-
-          {/* 2. GIRO DE ESTOQUE */}
-          <ReportCard 
-            title="Giro de Estoque"
-            description="Entenda o ritmo de saída dos produtos e classifique sua demanda."
-            icon={<RefreshCw className="text-blue-600" />}
-            href="/admin/reports/turnover"
-            fields={['Qtd. Estoque', 'Qtd. Vendida', 'Dias de Giro', 'Classificação']}
-          />
-
-          {/* 3. CURVA ABC */}
-          <ReportCard 
-            title="Curva ABC"
-            description="Descubra quais 20% de seus produtos geram 80% do seu faturamento."
-            icon={<Target className="text-amber-600" />}
-            href="/admin/reports/abc-curve"
-            fields={['Classe A (80%)', 'Classe B (15%)', 'Classe C (5%)']}
-          />
-
-          {/* 4. ANALYTICS GERAL */}
-          <ReportCard 
-            title="Inteligência Geral"
-            description="Visão completa de faturamento, ticket médio e evolução diária."
-            icon={<BarChart3 className="text-emerald-600" />}
+          {/* 📊 1. INTELIGÊNCIA GERAL (Sempre visível para o Admin) */}
+          <CardRelatorio 
             href="/admin/reports/analytics"
-            fields={['Ticket Médio', 'Evolução Vendas', 'Top Produtos']}
+            title="Inteligência Geral"
+            description="Visão macro do faturamento, ticket médio e fluxo operacional da loja."
+            icon={<BarChart3 className="text-blue-600" />}
           />
-          <ReportCard 
-            title="Entrada de NF-e"
-            description="Histórico completo de notas fiscais importadas via XML (Prevenção de duplicidade)."
-            icon={<FileText className="text-indigo-600" />}
-            href="/admin/reports/nfe"
-            fields={['Fornecedor', 'Nº da Nota', 'Valor Total', 'Data da Importação']}
-          />
+
+          {/* 💰 2. MARGEM DE LUCRO (Condicional) */}
+          {showMargem && (
+            <CardRelatorio 
+              href="/admin/reports/margin"
+              title="Margem de Lucro"
+              description="Análise detalhada do custo de aquisição versus preço de venda por item."
+              icon={<Percent className="text-emerald-600" />}
+            />
+          )}
+
+          {/* 🔄 3. GIRO DE ESTOQUE (Condicional) */}
+          {showGiro && (
+            <CardRelatorio 
+              href="/admin/reports/turnover"
+              title="Giro de Estoque"
+              description="Previsão de duração do estoque e alertas de ruptura iminente."
+              icon={<ArrowDownUp className="text-purple-600" />}
+            />
+          )}
+
+          {/* 📈 4. CURVA ABC (Condicional) */}
+          {showCurvaABC && (
+            <CardRelatorio 
+              href="/admin/reports/abc-curve"
+              title="Curva ABC de Vendas"
+              description="Identificação dos produtos que representam a maior fatia do faturamento."
+              icon={<TrendingUp className="text-amber-600" />}
+            />
+          )}
+
+          {/* 📝 5. ENTRADA DE NF (Condicional) */}
+          {showNF && (
+            <CardRelatorio 
+              href="/admin/reports/nfe"
+              title="Auditoria de Notas Fiscais"
+              description="Histórico de custos de fornecedores através do upload de arquivos XML."
+              icon={<FileSpreadsheet className="text-indigo-600" />}
+            />
+          )}
+
+          {/* 📅 6. SAZONALIDADE (Condicional) */}
+          {showSazonal && (
+            <CardRelatorio 
+              href="/admin/reports/seasonality"
+              title="Sazonalidade e Horários"
+              description="Mapas de calor indicando os picos de demanda em períodos específicos."
+              icon={<Calendar className="text-pink-600" />}
+            />
+          )}
 
         </div>
       </div>
@@ -71,32 +112,18 @@ export default function RelatoriosPage() {
   );
 }
 
-// Repare nas classes adicionadas aqui na primeira linha (border-2 border-gray-200 hover:border-[#253289])
-function ReportCard({ title, description, icon, href, fields }: any) {
+// Componente auxiliar de Card para manter o código limpo
+function CardRelatorio({ href, title, description, icon }: any) {
   return (
-    <Link href={href} className="bg-white rounded-3xl p-6 border-2 border-gray-200 shadow-sm hover:border-[#253289] hover:shadow-lg transition-all duration-300 group flex flex-col h-full">
-      <div className="flex justify-between items-start mb-4">
-        <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-[#253289] group-hover:text-white transition-all border border-transparent">
-          {icon}
+    <Link href={href} className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[160px]">
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl group-hover:scale-105 transition-transform">
+            {icon}
+          </div>
         </div>
-      </div>
-      
-      <h3 className="text-xl font-black text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-500 mb-6 flex-1 leading-relaxed">{description}</p>
-      
-      <div className="space-y-3 pt-4 border-t border-gray-100">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Indicadores principais:</p>
-        <div className="flex flex-wrap gap-2">
-          {fields.map((f: string, i: number) => (
-            <span key={i} className="text-[11px] font-bold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-200">
-              {f}
-            </span>
-          ))}
-        </div>
-      </div>
-      
-      <div className="mt-6 flex items-center gap-1 text-sm font-black text-[#253289] opacity-0 group-hover:opacity-100 transition-opacity">
-        Acessar relatório <ChevronRight size={16} />
+        <h3 className="font-black text-gray-900 dark:text-white text-lg tracking-tight group-hover:text-[#253289] dark:group-hover:text-blue-400 transition-colors">{title}</h3>
+        <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 font-medium leading-relaxed">{description}</p>
       </div>
     </Link>
   );

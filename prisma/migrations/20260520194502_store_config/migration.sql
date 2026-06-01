@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `orders` MODIFY `orderNumber` INTEGER NOT NULL AUTO_INCREMENT;

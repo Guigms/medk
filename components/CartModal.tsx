@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useCart } from '@/lib/cart';
-import { formatPrice, calculateDiscountPrice } from '@/lib/utils'; // 🌟 IMPORT ADICIONADO AQUI
+import { formatPrice, calculateDiscountPrice } from '@/lib/utils'; 
 import { generateWhatsAppLink } from '@/lib/whatsapp';
 import { useRouter } from 'next/navigation';
 import { X, ShoppingBag, Trash2 } from 'lucide-react';
@@ -16,7 +16,7 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
     name: '',
     phone: '',
     address: '',
-    paymentMethod: 'Cartão na Entrega',
+    paymentMethod: 'PIX', // 🌟 Deixei PIX como padrão, pois tem a melhor taxa para si!
     changeFor: ''
   });
 
@@ -30,26 +30,42 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
 
     setLoading(true);
     try {
+      // 🌟 CORREÇÃO VITAL: Reestruturamos o pacote de dados (Payload) para a API entender perfeitamente
+      const payload = {
+        items: items,
+        customer: { 
+          name: customer.name, 
+          phone: customer.phone 
+        },
+        deliveryAddress: customer.address,
+        paymentMethod: customer.paymentMethod, // Agora a API consegue ler isto!
+        total: totalAmount
+      };
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, customer, total: totalAmount })
+        body: JSON.stringify(payload)
       });
 
       const { order } = await response.json();
 
-      localStorage.setItem('last_order_number', order.orderNumber.toString());
-
       if (response.ok) {
+        localStorage.setItem('last_order_number', order.orderNumber.toString());
+        
         // Envia os itens para gerar o link do Whats
         const whatsappUrl = generateWhatsAppLink(order, items);
         window.open(whatsappUrl, '_blank');
+        
         clearCart();
         onClose();
         router.push('/checkout/sucesso');
+      } else {
+        alert("Erro ao processar o pedido. Verifique os dados.");
       }
     } catch (error) {
-      alert("Erro ao processar. Tente novamente.");
+      console.error(error);
+      alert("Erro ao conectar com o servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -82,7 +98,6 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
             </div>
           ) : (
             items.map((item) => {
-              // 🌟 CÁLCULO DO PREÇO COM DESCONTO DENTRO DO CARRINHO
               const basePrice = Number(item.product.price) || 0;
               const discountValue = Number(item.product.discount) || 0;
               const finalPrice = discountValue > 0 
@@ -94,12 +109,10 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
                   <img src={item.product.image} alt={item.product.name} className="w-16 h-16 object-cover rounded-lg bg-gray-100" />
                   <div className="flex-1">
                     <h4 className="text-sm font-bold text-gray-800 line-clamp-1">{item.product.name}</h4>
-                    {/* 🌟 MOSTRANDO O PREÇO FINAL CORRETO */}
                     <p className="text-xs text-blue-600 font-semibold">
                       {item.quantity}x {formatPrice(finalPrice)}
                     </p>
                     
-                    {/* Exibe uma tag de desconto se existir para o cliente saber que está economizando */}
                     {discountValue > 0 && (
                       <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1 py-0.5 rounded">
                         -{discountValue}% aplicado
@@ -129,14 +142,28 @@ export default function CartModal({ isOpen, onClose }: { isOpen: boolean, onClos
               className="w-full p-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#253289] outline-none"
               onChange={(e) => setCustomer({...customer, address: e.target.value})}
             />
+            
+            {/* 🌟 MELHORIA: Opções de pagamento mais precisas para o relatório */}
             <select 
               className="w-full p-2.5 text-sm border border-gray-200 rounded-xl bg-white outline-none"
               onChange={(e) => setCustomer({...customer, paymentMethod: e.target.value})}
+              value={customer.paymentMethod}
             >
-              <option value="Cartão na Entrega">Pagamento: Cartão na Entrega</option>
-              <option value="Pix na Entrega">Pagamento: Pix na Entrega</option>
-              <option value="Dinheiro">Pagamento: Dinheiro (Levar troco)</option>
+              <option value="PIX">Pagamento: PIX (Rápido e sem taxa)</option>
+              <option value="Cartão de Crédito">Pagamento: Cartão de Crédito (Na entrega)</option>
+              <option value="Cartão de Débito">Pagamento: Cartão de Débito (Na entrega)</option>
+              <option value="Dinheiro">Pagamento: Dinheiro</option>
             </select>
+
+            {/* Campo extra para o troco caso a pessoa escolha dinheiro */}
+            {customer.paymentMethod === 'Dinheiro' && (
+              <input 
+                type="text" 
+                placeholder="Precisa de troco para quanto?" 
+                className="w-full p-2.5 text-sm border border-orange-200 bg-orange-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none placeholder-orange-300"
+                onChange={(e) => setCustomer({...customer, changeFor: e.target.value})}
+              />
+            )}
           </div>
         )}
 

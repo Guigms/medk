@@ -1,31 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { formatPrice } from '@/lib/utils';
-import { Search, Target, TrendingUp, AlertCircle } from 'lucide-react';
+import { Search, Target, TrendingUp, AlertCircle, ArrowLeft } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
-// 🌟 NOVA PALETA: Cores contrastantes e elegantes para facilitar a distinção visual
+// 🌟 PALETA ADAPTADA: Tons vibrantes e equilibrados para alto contraste em modo claro e escuro
 const CHART_COLORS = [
-  '#253289', // Azul Escuro (Marca)
-  '#059669', // Verde Esmeralda
-  '#D97706', // Laranja Ouro
-  '#E11D48', // Vermelho Coral
-  '#6D28D9', // Roxo Profundo
-  '#0284C7', // Azul Ciano
-  '#BE185D', // Rosa Magenta
-  '#0F766E', // Verde Petróleo (Teal)
-  '#C2410C', // Laranja Queimado
-  '#475569', // Azul Metálico (Slate)
+  '#3b82f6', // Azul Dinâmico
+  '#10b981', // Verde Esmeralda
+  '#f59e0b', // Âmbar / Ouro
+  '#f43f5e', // Rosa Coral
+  '#8b5cf6', // Roxo Violeta
+  '#06b6d4', // Ciano Sky
+  '#ec4899', // Pink Profundo
+  '#14b8a6', // Teal
+  '#f97316', // Laranja Vivo
+  '#64748b', // Slate / Chumbo
 ];
-const COLOR_OTHERS = '#D1D5DB'; // Cinza claro para "Outros Produtos"
+const COLOR_OTHERS_LIGHT = '#D1D5DB'; // Cinza claro para o modo claro
+const COLOR_OTHERS_DARK = '#4b5563';  // Cinza chumbo para o modo escuro
 
 export default function CurvaAbcPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/reports/abc-curve')
@@ -34,13 +37,23 @@ export default function CurvaAbcPage() {
         setData(json);
         setLoading(false);
       });
+
+    // Monitora se a classe dark está ativa na tag html para atualizar o gráfico
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    
+    return () => observer.disconnect();
   }, []);
 
   const filteredData = data.filter(item => 
     item.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Lógica inteligente: Pega o Top 10 Produtos, e agrupa o resto em "Outros"
   const MAX_ITEMS = 10;
   let chartData: any[] = [];
 
@@ -61,39 +74,53 @@ export default function CurvaAbcPage() {
     }
   }
 
-  // Custom Tooltip para o Gráfico ficar elegante
+  // Custom Tooltip adaptado com visual Dark Mode nativo
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-gray-900 text-white p-3 rounded-xl shadow-xl text-sm border border-gray-700 max-w-[250px]">
+        <div className="bg-gray-900 dark:bg-black text-white p-3 rounded-xl shadow-xl text-sm border border-gray-700 dark:border-gray-800 max-w-[250px]">
           <p className="font-bold mb-1 line-clamp-2">{payload[0].name}</p>
-          <p className="text-[#10BCEC] font-black">{formatPrice(payload[0].value)}</p>
+          <p className="text-[#10BCEC] dark:text-blue-400 font-black">{formatPrice(payload[0].value)}</p>
         </div>
       );
     }
     return null;
   };
 
-  if (loading) return <div className="p-8 text-center font-bold text-[#253289]">Processando histórico de faturamento...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold text-[#253289] dark:text-blue-400">
+        Processando histórico de faturamento...
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <Link href="/admin/reports" className="text-[#253289] hover:underline text-sm font-bold flex items-center gap-1 mb-2">
-              ← Voltar para Relatórios
-            </Link>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Curva ABC</h1>
-            <p className="text-gray-500 text-sm">Classificação de faturamento dos últimos 90 dias.</p>
+      <div className="min-h-screen bg-background text-foreground p-4 md:p-8 transition-colors duration-300">
+        
+        {/* CABEÇALHO PADRONIZADO COM BOTÃO DE VOLTAR */}
+        <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.back()} 
+              className="p-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:text-[#253289] dark:hover:text-blue-400 hover:border-[#253289] dark:hover:border-blue-500 rounded-xl shadow-sm transition-all group cursor-pointer"
+              title="Voltar"
+            >
+              <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight leading-none">Curva ABC</h1>
+              <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm">Classificação de faturamento dos últimos 90 dias.</p>
+            </div>
           </div>
 
           <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
             <input 
               type="text"
               placeholder="Buscar produto..."
-              className="pl-10 pr-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-[#253289] outline-none w-full transition-all"
+              className="pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-800 rounded-xl focus:border-[#253289] dark:focus:border-blue-500 text-gray-900 dark:text-white outline-none w-full transition-all shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -103,10 +130,10 @@ export default function CurvaAbcPage() {
         {/* DASHBOARD VISUAL (Gráfico + Cartões) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           
-          {/* Gráfico de Produtos */}
-          <div className="lg:col-span-1 bg-white p-6 rounded-3xl border-2 border-gray-200 shadow-sm flex flex-col">
+          {/* Gráfico de Rosca */}
+          <div className="lg:col-span-1 bg-white dark:bg-gray-900 p-6 rounded-3xl border-2 border-gray-200 dark:border-gray-800 shadow-sm flex flex-col transition-colors">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">Top Faturamento</h2>
+              <h2 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Top Faturamento</h2>
             </div>
             <div className="flex-1 min-h-[220px]">
               {chartData.length > 0 ? (
@@ -122,7 +149,7 @@ export default function CurvaAbcPage() {
                       {chartData.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
-                          fill={entry.name === 'Outros Produtos' ? COLOR_OTHERS : CHART_COLORS[index % CHART_COLORS.length]} 
+                          fill={entry.name === 'Outros Produtos' ? (isDarkMode ? COLOR_OTHERS_DARK : COLOR_OTHERS_LIGHT) : CHART_COLORS[index % CHART_COLORS.length]} 
                           stroke="none" 
                         />
                       ))}
@@ -131,78 +158,78 @@ export default function CurvaAbcPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-gray-400 font-medium text-sm">
+                <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 font-medium text-sm italic">
                   Sem dados para o gráfico.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Legenda Estratégica */}
+          {/* Legenda Estratégica Adaptada */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-5 bg-emerald-50 border-2 border-emerald-100 rounded-3xl flex flex-col justify-center">
-              <div className="flex items-center gap-2 mb-3 text-emerald-800 font-black">
+            <div className="p-5 bg-emerald-50 dark:bg-emerald-950/20 border-2 border-emerald-100 dark:border-emerald-900/30 rounded-3xl flex flex-col justify-center shadow-sm transition-colors">
+              <div className="flex items-center gap-2 mb-3 text-emerald-800 dark:text-emerald-400 font-black uppercase text-xs tracking-wider">
                 <Target size={20} /> Classe A (80%)
               </div>
-              <p className="text-sm text-emerald-700 font-medium leading-relaxed">
-                Seus "carros-chefes". Representam a maior parte do lucro. <strong className="font-bold">Atenção:</strong> O estoque não pode zerar (Risco de Ruptura grave).
+              <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
+                Seus "carros-chefes". Representam a maior parte do lucro. <strong className="font-black">Atenção:</strong> O estoque não pode zerar.
               </p>
             </div>
             
-            <div className="p-5 bg-blue-50 border-2 border-blue-100 rounded-3xl flex flex-col justify-center">
-              <div className="flex items-center gap-2 mb-3 text-blue-800 font-black">
+            <div className="p-5 bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-100 dark:border-blue-900/30 rounded-3xl flex flex-col justify-center shadow-sm transition-colors">
+              <div className="flex items-center gap-2 mb-3 text-blue-800 dark:text-blue-400 font-black uppercase text-xs tracking-wider">
                 <TrendingUp size={20} /> Classe B (15%)
               </div>
-              <p className="text-sm text-blue-700 font-medium leading-relaxed">
-                Impacto mediano no caixa. Mantenha um estoque regulador e acompanhe para evitar que caiam para a Classe C.
+              <p className="text-sm text-blue-700 dark:text-blue-400 font-medium leading-relaxed">
+                Impacto mediano no caixa. Mantenha um estoque regulador para evitar que caiam para a Classe C.
               </p>
             </div>
 
-            <div className="p-5 bg-gray-50 border-2 border-gray-200 rounded-3xl flex flex-col justify-center">
-              <div className="flex items-center gap-2 mb-3 text-gray-700 font-black">
+            <div className="p-5 bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-3xl flex flex-col justify-center shadow-sm transition-colors">
+              <div className="flex items-center gap-2 mb-3 text-gray-700 dark:text-gray-400 font-black uppercase text-xs tracking-wider">
                 <AlertCircle size={20} /> Classe C (5%)
               </div>
-              <p className="text-sm text-gray-600 font-medium leading-relaxed">
-                Trazem pouquíssimo dinheiro. Compre apenas sob demanda e evite empatar capital nestes produtos.
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium leading-relaxed">
+                Trazem pouquíssimo dinheiro. Compre apenas sob demanda e evite empatar capital aqui.
               </p>
             </div>
           </div>
         </div>
 
-        {/* TABELA DE PRODUTOS */}
-        <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-sm overflow-hidden">
+        {/* TABELA DE PRODUTOS DA CURVA */}
+        <div className="bg-white dark:bg-gray-900 rounded-3xl border-2 border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden transition-colors">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-100">
-                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 tracking-widest">Produto</th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 tracking-widest text-center">Faturamento</th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 tracking-widest text-center">Participação (%)</th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 tracking-widest text-center">% Acumulada</th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 tracking-widest text-center">Classe</th>
+                <tr className="bg-gray-50 dark:bg-gray-950 border-b-2 border-gray-100 dark:border-gray-800">
+                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-widest">Produto</th>
+                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-widest text-center">Faturamento</th>
+                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-widest text-center">Participação (%)</th>
+                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-widest text-center">% Acumulada</th>
+                  <th className="px-6 py-4 text-[11px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-widest text-center">Classe</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {filteredData.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-bold text-gray-900">{item.name}</p>
-                      <p className="text-xs text-gray-500 font-medium">Estoque: {item.stock} un | Vendidos: {item.soldQuantity} un</p>
+                      <p className="font-bold text-gray-900 dark:text-gray-100">{item.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Estoque: {item.stock} un | Vendidos: {item.soldQuantity} un</p>
                     </td>
-                    <td className="px-6 py-4 text-center font-black text-[#253289]">
+                    <td className="px-6 py-4 text-center font-black text-[#253289] dark:text-blue-400">
                       {formatPrice(item.revenue)}
                     </td>
-                    <td className="px-6 py-4 text-center font-bold text-gray-600">
+                    <td className="px-6 py-4 text-center font-bold text-gray-600 dark:text-gray-300">
                       {item.itemPercent.toFixed(2)}%
                     </td>
-                    <td className="px-6 py-4 text-center font-medium text-gray-400">
+                    <td className="px-6 py-4 text-center font-medium text-gray-400 dark:text-gray-500">
                       {item.cumulativePercent.toFixed(2)}%
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`px-4 py-1.5 rounded-lg font-black text-sm border-2 inline-flex items-center justify-center gap-1 min-w-[100px] ${
-                        item.classification === 'A' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
-                        item.classification === 'B' ? 'bg-blue-50 border-blue-200 text-blue-700' : 
-                        'bg-gray-50 border-gray-200 text-gray-500'
+                      <span className={`px-4 py-1.5 rounded-lg font-black text-xs border-2 inline-flex items-center justify-center gap-1 min-w-[100px] transition-colors ${
+                        item.classification === 'A' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 
+                        item.classification === 'B' ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-400' : 
+                        'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
                       }`}>
                         Classe {item.classification}
                       </span>
@@ -214,8 +241,8 @@ export default function CurvaAbcPage() {
           </div>
           
           {filteredData.length === 0 && (
-            <div className="p-12 text-center text-gray-500 font-medium">
-              Nenhum dado de venda encontrado.
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400 font-medium italic">
+              Nenhum dado de venda encontrado para a Curva ABC.
             </div>
           )}
         </div>

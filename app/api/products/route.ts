@@ -10,22 +10,18 @@ export async function GET(request: NextRequest) {
     const searchTerm = searchParams.get('q') || searchParams.get('search'); 
     const featured = searchParams.get('featured');
     
-    // 🌟 NOVO: Captura se a requisição quer ver tudo (visão do admin)
     const adminView = searchParams.get('adminView') === 'true';
 
     const where: any = {};
 
-    // Se NÃO for visão de admin, aplicamos a trava de segurança de produtos ativos
     if (!adminView) {
       where.available = true;
     }
 
-    // Se houver busca por categoria
     if (category) {
       where.category = { slug: category };
     }
 
-    // Lógica de busca textual (Nome, Marca ou Código de Barras)
     if (searchTerm) {
       where.OR = [
         { name: { contains: searchTerm } },
@@ -35,7 +31,6 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Filtro de destaques
     if (featured === 'true') {
       where.featured = true;
     }

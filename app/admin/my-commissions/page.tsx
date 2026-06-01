@@ -2,128 +2,232 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { formatPrice } from '@/lib/utils';
-import { Target, DollarSign, Receipt, Clock, CheckCircle2 } from 'lucide-react';
-import Link from 'next/link';
+import { DollarSign, Target, TrendingUp, Award, ArrowLeft, Receipt } from 'lucide-react';
 
-const META_MENSAL = 10000;
+// 🛡️ Tipagem TypeScript
+interface CommissionRecord {
+  id: string;
+  amount: number | string;
+  status: 'PENDING' | 'PAID';
+  createdAt: string;
+  order?: {
+    orderNumber: number | string;
+    totalAmount: number | string;
+  };
+}
 
-export default function MinhasComissoesPage() {
+interface MetricsState {
+  monthlyGoal: number;
+  totalSales: number;
+  pendingCommissions: number;
+  paidCommissions: number;
+  history: CommissionRecord[];
+}
+
+export default function MyCommissionsPage() {
   const { user } = useAuth();
-  const [data, setData] = useState<any>(null);
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+  
+  const [metrics, setMetrics] = useState<MetricsState>({
+    monthlyGoal: 0,
+    totalSales: 0,
+    pendingCommissions: 0,
+    paidCommissions: 0,
+    history: []
+  });
+
+  // 🛡️ TRAVA SAAS: Bloqueia se a farmácia não tiver o módulo ativado
+  const isSuperAdmin = user?.role?.toUpperCase() === 'SUPER_ADMIN';
+  const temAcesso = isSuperAdmin || user?.moduleCommissions === true;
 
   useEffect(() => {
-    if (user?.id) {
-      fetch(`/api/commissions?userId=${user.id}`)
-        .then(res => res.json())
-        .then(setData)
-        .finally(() => setLoading(false));
+    if (user && !temAcesso) {
+      router.replace('/admin/dashboard'); // Expulsa silenciosamente se não tiver licença
     }
-  }, [user]);
+  }, [user, temAcesso, router]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-[#253289] font-bold">Calculando seus resultados...</div>;
+  useEffect(() => {
+    const fetchMyMetrics = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await fetch(`/api/commissions?userId=${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMetrics(data);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar comissões:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const percentualMeta = Math.min(((data?.totalSold || 0) / META_MENSAL) * 100, 100);
-  const bateuMeta = percentualMeta >= 100;
+    if (temAcesso) fetchMyMetrics();
+  }, [user, temAcesso]);
+
+  if (!user || !temAcesso) return null;
+
+  // Cálculos de Progresso
+  const goal = Number(metrics.monthlyGoal) || 0;
+  const sales = Number(metrics.totalSales) || 0;
+  const progressPercentage = goal > 0 ? Math.min((sales / goal) * 100, 100) : 0;
+  const isGoalReached = sales >= goal && goal > 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-[#253289] font-bold">
+        Carregando suas métricas...
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute>
-      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-[#253289] flex items-center gap-2">
-            <DollarSign size={32} /> Meu Desempenho
-          </h1>
-          <p className="text-gray-500 mt-1">Acompanhe suas vendas e comissões do mês atual.</p>
-        </div>
-
-        {/* CARDS DE RESUMO */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-             <div className="absolute -right-4 -top-4 text-blue-50 opacity-50"><Target size={100}/></div>
-             <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Total Vendido</p>
-             <h2 className="text-3xl font-black text-[#253289] mb-2">{formatPrice(data?.totalSold || 0)}</h2>
-             <p className="text-sm font-bold text-blue-600 bg-blue-50 inline-block px-3 py-1 rounded-lg">
-               {data?.salesCount || 0} vendas realizadas
-             </p>
-          </div>
-          
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 rounded-3xl shadow-lg shadow-emerald-200 text-white relative overflow-hidden">
-             <div className="absolute -right-4 -top-4 text-white opacity-20"><DollarSign size={100}/></div>
-             <p className="text-xs font-black text-emerald-100 uppercase tracking-widest mb-1">Comissão a Receber</p>
-             <h2 className="text-3xl font-black mb-2">{formatPrice(data?.pendingCommission || 0)}</h2>
-             <p className="text-sm font-bold bg-white/20 inline-block px-3 py-1 rounded-lg">
-               Taxa atual: {data?.commissionRate}%
-             </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-             <div className="absolute -right-4 -top-4 text-gray-50 opacity-50"><CheckCircle2 size={100}/></div>
-             <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Já Pago no Mês</p>
-             <h2 className="text-3xl font-black text-gray-800">{formatPrice(data?.paidCommission || 0)}</h2>
-             <p className="text-sm text-gray-400 mt-2">Valores já liquidados pela gerência.</p>
+      <div className="p-4 md:p-8 bg-background text-foreground min-h-screen transition-colors duration-300 pb-20">
+        
+        {/* CABEÇALHO */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.back()} 
+              className="p-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:text-[#253289] dark:hover:text-blue-400 hover:border-[#253289] dark:hover:border-blue-500 rounded-xl shadow-sm transition-all group cursor-pointer"
+              title="Voltar"
+            >
+              <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2 tracking-tight">
+                <TrendingUp size={32} className="text-[#253289] dark:text-blue-400" /> Minhas Comissões
+              </h1>
+              <p className="text-sm text-gray-500 mt-1 font-medium">Acompanhe sua performance e ganhos deste mês.</p>
+            </div>
           </div>
         </div>
 
-        {/* BARRA DE META */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-8">
-          <h3 className="font-black text-gray-900 mb-4 flex items-center gap-2">
-             <Target className="text-blue-500"/> Progresso da Meta Mensal
-          </h3>
-          <div className="flex justify-between text-sm font-bold mb-2">
-            <span className="text-gray-500">Alcançado: {percentualMeta.toFixed(1)}%</span>
-            <span className="text-gray-900">Meta: {formatPrice(META_MENSAL)}</span>
+        {/* 🌟 PAINEL DE METAS E PROGRESSO */}
+        <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800 mb-8 relative overflow-hidden transition-colors">
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-50 dark:bg-blue-900/20 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+              <div>
+                <h2 className="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2 mb-2">
+                  <Target size={16} /> Meta Mensal de Vendas
+                </h2>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+                    {formatPrice(sales)}
+                  </span>
+                  <span className="text-lg text-gray-400 font-bold">
+                    / {goal > 0 ? formatPrice(goal) : 'Não definida'}
+                  </span>
+                </div>
+              </div>
+              
+              {isGoalReached && (
+                <div className="bg-[#25D366]/10 text-[#25D366] px-4 py-2 rounded-xl font-black flex items-center gap-2 border border-[#25D366]/20 animate-in zoom-in">
+                  <Award size={20} /> Meta Batida!
+                </div>
+              )}
+            </div>
+
+            {/* Barra de Progresso */}
+            <div className="w-full">
+              <div className="w-full h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex border dark:border-gray-700">
+                <div 
+                  className={`h-full transition-all duration-1000 ease-out rounded-full ${isGoalReached ? 'bg-[#25D366] shadow-[0_0_10px_rgba(37,211,102,0.5)]' : 'bg-[#253289] dark:bg-blue-500'}`}
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+              {goal > 0 && (
+                <p className="text-right text-xs font-bold text-gray-400 mt-2">{progressPercentage.toFixed(1)}% concluído</p>
+              )}
+            </div>
           </div>
-          <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-1000 rounded-full ${bateuMeta ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-[#253289]'}`}
-              style={{ width: `${percentualMeta}%` }}
-            ></div>
-          </div>
-          {bateuMeta && <p className="text-emerald-600 font-bold text-sm mt-3 text-center animate-pulse">🎉 Parabéns! Você atingiu a meta deste mês!</p>}
         </div>
 
-        {/* LISTA DE VENDAS RECENTES */}
-        <h3 className="font-black text-gray-900 mb-4 flex items-center gap-2">
-           <Receipt className="text-gray-400"/> Detalhamento das Vendas
-        </h3>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {data?.recentRecords?.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Nenhuma venda comissionada registrada este mês ainda.</div>
-          ) : (
+        {/* CARDS DE RESUMO FINANCEIRO */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-amber-50 dark:bg-amber-950/20 p-6 rounded-3xl border border-amber-100 dark:border-amber-900/30 flex items-center gap-4 transition-colors">
+            <div className="w-14 h-14 bg-amber-100 dark:bg-amber-900/50 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <DollarSign size={28} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">A Receber (Pendente)</p>
+              <p className="text-2xl font-black text-amber-700 dark:text-amber-400">{formatPrice(metrics.pendingCommissions)}</p>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-4 transition-colors">
+            <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <Receipt size={28} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest">Já Pago (Liquidado)</p>
+              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatPrice(metrics.paidCommissions)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* HISTÓRICO DE VENDAS RECENTES */}
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+            <h3 className="font-black text-lg text-gray-900 dark:text-white tracking-tight">Suas Vendas Recentes</h3>
+          </div>
+          <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-[11px] font-black tracking-widest text-gray-500 uppercase">
+              <thead className="bg-gray-50 dark:bg-gray-950 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-800">
                 <tr>
-                  <th className="p-4">Pedido</th>
+                  <th className="p-4 pl-6">Nº Pedido</th>
                   <th className="p-4">Data</th>
-                  <th className="p-4 text-right">Valor da Venda</th>
-                  <th className="p-4 text-right">Sua Comissão</th>
-                  <th className="p-4 text-center">Status</th>
+                  <th className="p-4">Valor da Venda</th>
+                  <th className="p-4">Sua Comissão</th>
+                  <th className="p-4 pr-6 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {data?.recentRecords?.map((record: any) => (
-                  <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4 font-bold text-gray-900">#{record.order.orderNumber}</td>
-                    <td className="p-4 text-sm text-gray-500 flex items-center gap-1">
-                      <Clock size={12}/> {new Date(record.order.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="p-4 text-right font-medium text-gray-600">{formatPrice(Number(record.order.totalAmount))}</td>
-                    <td className="p-4 text-right font-black text-emerald-600">+{formatPrice(Number(record.amount))}</td>
-                    <td className="p-4 text-center">
-                      {record.status === 'PENDING' ? (
-                        <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-1 rounded-md font-bold uppercase">A Receber</span>
-                      ) : (
-                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md font-bold uppercase">Pago</span>
-                      )}
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                {metrics.history.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-12 text-center text-gray-400 font-medium italic">
+                      Nenhuma venda registrada neste mês.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  metrics.history.map((record) => (
+                    <tr key={record.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+                      <td className="p-4 pl-6 font-bold text-gray-900 dark:text-gray-100">
+                        #{record.order?.orderNumber || '---'}
+                      </td>
+                      <td className="p-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {new Date(record.createdAt).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="p-4 font-medium text-gray-600 dark:text-gray-300">
+                        {formatPrice(Number(record.order?.totalAmount || 0))}
+                      </td>
+                      <td className="p-4 font-black text-[#253289] dark:text-blue-400">
+                        +{formatPrice(Number(record.amount))}
+                      </td>
+                      <td className="p-4 pr-6 text-right">
+                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          record.status === 'PAID' 
+                            ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40' 
+                            : 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40'
+                        }`}>
+                          {record.status === 'PAID' ? 'Pago' : 'Pendente'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-          )}
+          </div>
         </div>
+
       </div>
     </ProtectedRoute>
   );

@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
       items = [],
       deliveryOption = 'PICKUP',
       deliveryAddress,
-      paymentMethod = 'CASH',
       deliveryFee = 0,
       observation,
       changeFor,
@@ -18,75 +17,100 @@ export async function POST(request: NextRequest) {
       userId 
     } = body;
 
-    // 1. Verificação de Receita
-    const hasPrescription = items.some((item: any) => 
-      item.product?.requiresPrescription === true || item.requiresPrescription === true
-    );
+    // 🌟 1. Captura Inteligente e Normalização do Pagamento
+    const rawPayment = body.paymentMethod || body.payment || 'MONEY';
+    let finalPaymentMethod = String(rawPayment).toUpperCase().trim();
 
-    // 2. Cálculo do Subtotal (Segurança no Backend)
+    if (finalPaymentMethod.includes('CRÉDITO') || finalPaymentMethod.includes('CREDITO')) finalPaymentMethod = 'CREDIT_CARD';
+    else if (finalPaymentMethod.includes('DÉBITO') || finalPaymentMethod.includes('DEBITO')) finalPaymentMethod = 'DEBIT_CARD';
+    else if (finalPaymentMethod.includes('DINHEIRO') || finalPaymentMethod === 'CASH') finalPaymentMethod = 'MONEY';
+    else if (finalPaymentMethod.includes('PIX')) finalPaymentMethod = 'PIX';
+
+    // 🌟 2. CONSULTA SEGURA DE PREÇOS NO BANCO DE DADOS
+    const productIds = items.map((item: any) => item.product?.id || item.id);
+    const dbProducts = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, price: true, requiresPrescription: true }
+    });
+
+    // 3. Verificação de Receita (Baseada no Banco de Dados)
+    const hasPrescription = dbProducts.some(p => p.requiresPrescription === true);
+
+    // 🌟 4. Cálculo do Subtotal 100% Seguro (Evita que o valor fique "alto" ou adulterado)
     const calculatedSubtotal = items.reduce((acc: number, item: any) => {
-      const itemPrice = Number(item.product?.price || item.price || 0);
-      return acc + (itemPrice * (item.quantity || 1));
+      const prodId = item.product?.id || item.id;
+      const realProduct = dbProducts.find(p => p.id === prodId);
+      const exactPrice = realProduct ? Number(realProduct.price) : 0;
+      
+      return acc + (exactPrice * (item.quantity || 1));
     }, 0);
 
     const safeDeliveryFee = Number(deliveryFee) || 0;
     const calculatedTotal = calculatedSubtotal + safeDeliveryFee;
-    const orderNumber = Math.floor(100000 + Math.random() * 900000);
 
+    // 🌟 5. Verificação Segura de Vendedor (Impede erro 500 se o usuário deslogar)
     let seller = null;
+    let validSellerId = null; 
+
     if (userId) {
       seller = await prisma.user.findUnique({ 
         where: { id: userId },
-        select: { commissionRate: true } // Trazemos apenas o que importa para ficar leve
+        select: { id: true, commissionRate: true } 
       });
+      if (seller) {
+        validSellerId = seller.id;
+      }
     }
-
 
     const result = await prisma.$transaction(async (tx) => {
       
       const newOrder = await tx.order.create({
-        data: {
-          orderNumber: orderNumber,
-          customerName: customer?.name || 'Venda de Balcão',
-          customerPhone: customer?.phone || 'N/A',
-          deliveryOption: deliveryOption,
-          deliveryAddress: deliveryAddress || null,
-          subtotal: calculatedSubtotal, 
-          deliveryFee: safeDeliveryFee,
-          totalAmount: calculatedTotal,
-          paymentMethod: paymentMethod,
-          hasPrescription: hasPrescription,
-          observation: observation || null,
-          changeFor: changeFor ? String(changeFor) : null,
-          source: source,
-          status: source === 'COUNTER' ? 'COMPLETED' : 'PENDING',
-          sellerId: userId || null, 
+  data: {
+    customerName: customer?.name || 'Venda de Balcão',
+    customerPhone: customer?.phone || 'N/A',
+    deliveryOption: deliveryOption,
+    deliveryAddress: deliveryAddress || null,
+    subtotal: calculatedSubtotal, 
+    deliveryFee: safeDeliveryFee,
+    totalAmount: calculatedTotal,
+    paymentMethod: finalPaymentMethod,
+    hasPrescription: hasPrescription,
+    observation: observation || null,
+    changeFor: changeFor ? String(changeFor) : null,
+    source: source,
+    status: source === 'COUNTER' ? 'COMPLETED' : 'PENDING',
+    sellerId: validSellerId,
+    
+    orderItems: {
+      create: items.map((item: any) => {
+        const prodId = item.product?.id || item.id;
+        const realProduct = dbProducts.find(p => p.id === prodId);
+        return {
+          productId: prodId,
+          quantity: item.quantity || 1,
+          price: realProduct ? Number(realProduct.price) : 0,
+        };
+      })
+    }
+  }
+});
 
-          orderItems: {
-            create: items.map((item: any) => ({
-              productId: item.product?.id || item.id,
-              quantity: item.quantity || 1,
-              price: Number(item.product?.price || item.price || 0),
-            }))
-          }
-        }
-      });
-
-      if (source === 'COUNTER' && userId && seller && Number(seller.commissionRate) > 0) {
+      // 6. Calcula a comissão com o valor total correto
+      if (source === 'COUNTER' && validSellerId && seller && Number(seller.commissionRate) > 0) {
         const commissionAmount = calculatedTotal * (Number(seller.commissionRate) / 100);
 
         await tx.commissionRecord.create({
           data: {
             orderId: newOrder.id,
-            sellerId: userId,
+            sellerId: validSellerId,
             amount: commissionAmount,
             percentage: seller.commissionRate,
-            status: 'PENDING' // Fica pendente para você pagar no final do mês
+            status: 'PENDING' 
           }
         });
       }
 
-      // 4. BAIXA DE ESTOQUE E VERIFICAÇÃO DE ALERTA
+      // 7. BAIXA DE ESTOQUE
       for (const item of items) {
         const productId = item.product?.id || item.id;
         const qtyToSubtract = item.quantity || 1;

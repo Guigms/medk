@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { ArrowLeft, LogOut } from 'lucide-react';
 
 // Interfaces de Tipagem
 interface Category {
@@ -26,8 +27,8 @@ interface ProductFormData {
   requiresPrescription: boolean;
   stock: string;
   barcode: string; 
-  purchaseBarcode: string; // <-- NOVO: Código da Caixa Master
-  conversionFactor: string; // <-- NOVO: Fator de conversão
+  purchaseBarcode: string;
+  conversionFactor: string;
 }
 
 const INITIAL_FORM_STATE: ProductFormData = {
@@ -43,8 +44,8 @@ const INITIAL_FORM_STATE: ProductFormData = {
   requiresPrescription: false,
   stock: '',
   barcode: '', 
-  purchaseBarcode: '', // <-- NOVO
-  conversionFactor: '1', // <-- NOVO: Padrão é 1 (venda direta)
+  purchaseBarcode: '',
+  conversionFactor: '1',
 };
 
 export default function NovoProductPage() {
@@ -98,11 +99,8 @@ export default function NovoProductPage() {
           price: priceValue,
           brand: formData.brand || null,
           barcode: formData.barcode || null, 
-          
-          // 🌟 NOVOS CAMPOS ENVIADOS PARA A API
           purchaseBarcode: formData.purchaseBarcode || null, 
           conversionFactor: parseInt(formData.conversionFactor) || 1, 
-          
           discount: formData.discount ? parseInt(formData.discount) : null,
           stock: formData.stock ? parseInt(formData.stock) : 0,
         }),
@@ -116,7 +114,6 @@ export default function NovoProductPage() {
       setSuccess('Produto criado com sucesso! Redirecionando...');
       setFormData(INITIAL_FORM_STATE);
 
-      // Timer com limpeza automática
       const timer = setTimeout(() => {
         router.push('/admin/produtos');
       }, 2000);
@@ -133,87 +130,96 @@ export default function NovoProductPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Link href="/admin/produtos" className="text-[#253289] hover:underline text-sm mb-1 inline-block">
-                  ← Voltar para Lista de Produtos
-                </Link>
-                <h1 className="text-2xl font-bold text-gray-900">Adicionar Novo Produto</h1>
-              </div>
-              <button
-                onClick={() => logout()}
-                className="bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors border border-red-200 font-medium"
+      <div className="min-h-screen bg-background text-foreground pb-20 transition-colors duration-300">
+        
+        {/* CABEÇALHO PADRONIZADO COM BOTÃO DE VOLTAR */}
+        <header className="bg-white dark:bg-gray-900 shadow-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30 transition-colors">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => router.back()} 
+                className="p-2.5 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-[#253289] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl transition-all border border-gray-100 dark:border-gray-700 flex items-center group cursor-pointer"
+                title="Voltar"
               >
-                Sair
+                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
               </button>
+              <div>
+                <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight leading-tight">Adicionar Novo Produto</h1>
+                <p className="hidden md:block text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest leading-none mt-1">Lançamento de Inventário Comercial MedK</p>
+              </div>
             </div>
+
+            <button
+              onClick={() => logout()}
+              className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 px-4 py-2.5 rounded-xl border border-red-100 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-900/60 font-bold transition-colors text-sm flex items-center gap-1 cursor-pointer"
+            >
+              <LogOut size={16} /> <span className="hidden sm:inline">Sair</span>
+            </button>
           </div>
         </header>
 
-        {/* Main Content */}
+        {/* CONTEÚDO PRINCIPAL */}
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
-            {/* Alerts */}
+            
+            {/* ALERTAS */}
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-6 shadow-sm">
-                <p className="font-bold">Erro</p>
-                <p>{error}</p>
+              <div className="bg-red-50 dark:bg-red-950/20 border-l-4 border-red-500 text-red-700 dark:text-red-400 p-4 rounded-xl mb-6 shadow-sm border dark:border-red-900/30">
+                <p className="font-black text-sm uppercase tracking-wide">Erro</p>
+                <p className="text-sm mt-0.5 font-medium">{error}</p>
               </div>
             )}
             
             {success && (
-              <div className="bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-6 shadow-sm">
-                <p className="font-bold">Sucesso!</p>
-                <p>{success}</p>
+              <div className="bg-green-50 dark:bg-green-950/20 border-l-4 border-green-500 text-green-700 dark:text-green-400 p-4 rounded-xl mb-6 shadow-sm border dark:border-green-900/30">
+                <p className="font-black text-sm uppercase tracking-wide">Sucesso!</p>
+                <p className="text-sm mt-0.5 font-medium">{success}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 space-y-8">
+            {/* FORMULÁRIO */}
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 md:p-8 space-y-8 transition-colors">
               
-              {/* Seção 1: Informações de Venda */}
+              {/* SEÇÃO 1: INFORMAÇÕES COMERCIAIS */}
               <section>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                  <span className="p-1.5 bg-blue-50 rounded-lg text-blue-600 text-sm">01</span>
+                <h2 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-[#253289] dark:text-blue-400 rounded-lg text-xs font-black">01</span>
                   Informações Comerciais
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
-                  {/* 🌟 BLOCO DE CÓDIGOS DE BARRAS E CONVERSÃO */}
-                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
+                  {/* BLOCO DE CÓDIGOS DE BARRAS E FATOR DE CONVERSÃO */}
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-950 p-5 rounded-2xl border border-gray-200 dark:border-gray-800 transition-colors">
                     <div>
-                      <label htmlFor="barcode" className="block text-sm font-bold text-gray-700 mb-1">Cód. Venda (EAN-13)</label>
+                      <label htmlFor="barcode" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Cód. Venda (EAN-13)</label>
                       <input
                         id="barcode"
                         type="text"
                         value={formData.barcode}
                         onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 font-mono"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-gray-900 dark:text-white font-mono text-sm"
                         placeholder="Ex: 789..."
                         autoFocus
                       />
-                      <p className="text-[10px] text-gray-500 mt-1">Bipado no balcão (Unidade)</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 font-medium">Bipado no balcão (Unidade de Venda)</p>
                     </div>
 
                     <div>
-                      <label htmlFor="purchaseBarcode" className="block text-sm font-bold text-gray-700 mb-1">Cód. NF (DUN-14)</label>
+                      <label htmlFor="purchaseBarcode" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Cód. NF (DUN-14)</label>
                       <input
                         id="purchaseBarcode"
                         type="text"
                         value={formData.purchaseBarcode}
                         onChange={(e) => setFormData({ ...formData, purchaseBarcode: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 font-mono"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-gray-900 dark:text-white font-mono text-sm"
                         placeholder="Ex: 1789..."
                       />
-                      <p className="text-[10px] text-gray-500 mt-1">Código da caixa master (Fornecedor)</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 font-medium">Código da caixa master (Fornecedor)</p>
                     </div>
 
                     <div>
-                      <label htmlFor="conversionFactor" className="block text-sm font-bold text-[#253289] mb-1">Fator de Conversão</label>
+                      <label htmlFor="conversionFactor" className="block text-[10px] font-black text-[#253289] dark:text-blue-400 uppercase tracking-widest mb-1.5 ml-1">Fator de Conversão</label>
                       <input
                         id="conversionFactor"
                         type="number"
@@ -221,46 +227,46 @@ export default function NovoProductPage() {
                         required
                         value={formData.conversionFactor}
                         onChange={(e) => setFormData({ ...formData, conversionFactor: e.target.value })}
-                        className="w-full px-4 py-2.5 border-2 border-blue-100 rounded-lg focus:border-[#253289] outline-none text-gray-900 font-black text-center"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border-2 border-blue-100 dark:border-gray-700 rounded-xl focus:border-[#253289] dark:focus:border-blue-500 outline-none text-gray-900 dark:text-white font-black text-center text-sm"
                         placeholder="1"
                       />
-                      <p className="text-[10px] text-gray-500 mt-1">Unidades dentro de 1 caixa</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 font-medium">Unidades fracionadas dentro da caixa</p>
                     </div>
                   </div>
 
                   <div className="md:col-span-2">
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
+                    <label htmlFor="name" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Nome do Produto *</label>
                     <input
                       id="name"
                       type="text"
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-gray-900 dark:text-white font-bold text-sm"
                       placeholder="Ex: Amoxicilina 500mg - 21 Cápsulas"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-1">Marca / Laboratório</label>
+                    <label htmlFor="brand" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Marca / Laboratório</label>
                     <input
                       id="brand"
                       type="text"
                       value={formData.brand}
                       onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm"
                       placeholder="Ex: Eurofarma"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
+                    <label htmlFor="categoryId" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Categoria *</label>
                     <select
                       id="categoryId"
                       required
                       value={formData.categoryId}
                       onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900 bg-white"
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none text-gray-600 dark:text-gray-300 font-bold bg-white cursor-pointer text-sm"
                     >
                       <option value="">Selecione...</option>
                       {categories.map((cat) => (
@@ -270,7 +276,7 @@ export default function NovoProductPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$) *</label>
+                    <label htmlFor="price" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Preço de Venda (R$) *</label>
                     <input
                       id="price"
                       type="number"
@@ -278,68 +284,68 @@ export default function NovoProductPage() {
                       required
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-[#253289] dark:text-blue-400 font-black text-sm"
                       placeholder="0,00"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">Estoque Inicial (Unidades)</label>
+                    <label htmlFor="stock" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Estoque Inicial (Unidades)</label>
                     <input
                       id="stock"
                       type="number"
                       value={formData.stock}
                       onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-blue-600 dark:text-blue-400 font-black text-sm"
                       placeholder="0"
                     />
                   </div>
                 </div>
               </section>
 
-              {/* Seção 2: Detalhes e Imagem */}
+              {/* SEÇÃO 2: DETALHES E IMAGEM */}
               <section>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                  <span className="p-1.5 bg-blue-50 rounded-lg text-blue-600 text-sm">02</span>
+                <h2 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-[#253289] dark:text-blue-400 rounded-lg text-xs font-black">02</span>
                   Detalhes do Produto
                 </h2>
                 
                 <div className="space-y-6">
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Descrição Completa *</label>
+                    <label htmlFor="description" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Descrição Completa *</label>
                     <textarea
                       id="description"
                       required
                       rows={4}
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
-                      placeholder="Indicações, contraindicações e modo de uso..."
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm"
+                      placeholder="Indicações, contraindicações e modo de uso estruturado..."
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">URL da Imagem *</label>
-                    <div className="flex gap-4 items-start">
-                      <div className="flex-1">
+                    <label htmlFor="image" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">URL da Imagem *</label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      <div className="flex-1 w-full">
                         <input
                           id="image"
                           type="url"
                           required
                           value={formData.image}
                           onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
+                          className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none text-xs font-mono text-gray-900 dark:text-white"
                           placeholder="https://exemplo.com/foto.jpg"
                         />
-                        <p className="text-xs text-gray-500 mt-2">Dica: Use links diretos do Unsplash ou do seu servidor de imagens.</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-medium">Use links diretos estáticos de servidores de armazenamento ou imagens públicas.</p>
                       </div>
                       
                       {formData.image && (
-                        <div className="shrink-0">
+                        <div className="shrink-0 mx-auto sm:mx-0">
                           <img 
                             src={formData.image} 
                             alt="Preview" 
-                            className="w-24 h-24 object-cover rounded-lg border border-gray-200 bg-gray-50"
+                            className="w-24 h-24 object-cover rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 shadow-inner"
                             onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/100?text=Erro'; }}
                           />
                         </div>
@@ -349,16 +355,16 @@ export default function NovoProductPage() {
                 </div>
               </section>
 
-              {/* Seção 3: Regras de Negócio */}
+              {/* SEÇÃO 3: REGRAS DE NEGÓCIO */}
               <section>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                  <span className="p-1.5 bg-blue-50 rounded-lg text-blue-600 text-sm">03</span>
+                <h2 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-[#253289] dark:text-blue-400 rounded-lg text-xs font-black">03</span>
                   Configurações e Regras
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="discount" className="block text-sm font-medium text-gray-700 mb-1">Desconto Promocional (%)</label>
+                    <label htmlFor="discount" className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Desconto Promocional (%)</label>
                     <input
                       id="discount"
                       type="number"
@@ -366,20 +372,20 @@ export default function NovoProductPage() {
                       max="100"
                       value={formData.discount}
                       onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#253289] outline-none text-gray-900"
+                      className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-[#253289] dark:focus:ring-blue-500 outline-none font-bold text-red-500 dark:text-red-400 text-sm"
                       placeholder="Ex: 10"
                     />
                   </div>
 
-                  <div className="flex flex-col justify-end space-y-3 py-2">
+                  <div className="flex flex-col justify-end space-y-3.5 py-2">
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input
                         type="checkbox"
                         checked={formData.available}
                         onChange={(e) => setFormData({ ...formData, available: e.target.checked })}
-                        className="w-5 h-5 text-[#253289] border-gray-300 rounded focus:ring-[#253289]"
+                        className="w-5 h-5 text-[#253289] dark:text-blue-600 border-gray-300 dark:border-gray-700 rounded focus:ring-[#253289] bg-gray-50 dark:bg-gray-800"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">Produto disponível para venda</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Produto disponível para venda imediata</span>
                     </label>
 
                     <label className="flex items-center gap-3 cursor-pointer group">
@@ -387,9 +393,9 @@ export default function NovoProductPage() {
                         type="checkbox"
                         checked={formData.featured}
                         onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                        className="w-5 h-5 text-[#253289] border-gray-300 rounded focus:ring-[#253289]"
+                        className="w-5 h-5 text-[#253289] dark:text-blue-600 border-gray-300 dark:border-gray-700 rounded focus:ring-[#253289] bg-gray-50 dark:bg-gray-800"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">Destaque na página inicial</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Destaque na vitrine da página inicial</span>
                     </label>
 
                     <label className="flex items-center gap-3 cursor-pointer group">
@@ -397,20 +403,20 @@ export default function NovoProductPage() {
                         type="checkbox"
                         checked={formData.requiresPrescription}
                         onChange={(e) => setFormData({ ...formData, requiresPrescription: e.target.checked })}
-                        className="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                        className="w-5 h-5 text-orange-500 border-gray-300 dark:border-gray-700 rounded focus:ring-orange-500 bg-gray-50 dark:bg-gray-800"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors font-medium">⚠️ Requer Retenção de Receita</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white font-black transition-colors">⚠️ REQUER RETENÇÃO DE RECEITA CONTROLADA</span>
                     </label>
                   </div>
                 </div>
               </section>
 
-              {/* Ações */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-6">
+              {/* PAINEL DE BOTÕES DE AÇÃO */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-[#253289] text-white py-3.5 rounded-xl hover:bg-[#1a2461] transition-all font-bold shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                  className="flex-[2] bg-[#253289] dark:bg-blue-600 text-white py-4 rounded-xl hover:bg-[#1a2461] dark:hover:bg-blue-700 transition-all font-black shadow-lg shadow-blue-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center cursor-pointer text-base"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -425,7 +431,7 @@ export default function NovoProductPage() {
                 
                 <Link
                   href="/admin/produtos"
-                  className="flex-1 bg-white text-gray-600 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold text-center border border-gray-200"
+                  className="flex-1 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 py-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold text-center border border-gray-200 dark:border-gray-700 text-sm flex items-center justify-center cursor-pointer"
                 >
                   Cancelar e Sair
                 </Link>

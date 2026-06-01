@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const totalRevenue = Number(summaryData._sum.totalAmount || 0);
     const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // 2. Contagens de Produtos (Para os Cards do Dashboard)
+    // 2. Contagens de Produtos
     const [totalProducts, availableProducts, prescriptionProducts, totalClicks] = await Promise.all([
       prisma.product.count(),
       prisma.product.count({ where: { available: true } }),
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       take: 5
     });
 
-    // 5A. Produtos Mais Clicados (Para o Dashboard)
+    // 5. Produtos Mais Clicados e Receita
     const topClicksRaw = await prisma.productClick.groupBy({
       by: ['productId'],
       where: { clickedAt: { gte: startDate, lte: endDate } },
@@ -109,7 +109,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // 5B. Top 5 Produtos por Receita Real (Vendas) para o Gráfico
     const orderItemsForRevenue = await prisma.orderItem.findMany({
       where: {
         order: {
@@ -124,13 +123,8 @@ export async function GET(request: NextRequest) {
     orderItemsForRevenue.forEach(item => {
       const prodId = item.productId;
       const itemRevenue = Number(item.price) * item.quantity;
-      
       if (!revenueMap.has(prodId)) {
-        revenueMap.set(prodId, { 
-          id: prodId, 
-          name: item.product?.name || 'Produto Removido', 
-          revenue: 0 
-        });
+        revenueMap.set(prodId, { id: prodId, name: item.product?.name || 'Produto Removido', revenue: 0 });
       }
       revenueMap.get(prodId).revenue += itemRevenue;
     });
@@ -143,7 +137,7 @@ export async function GET(request: NextRequest) {
     const [recentOrders, totalRecentOrders] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: startDate, lte: endDate } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { orderNumber: 'desc' }, // 🌟 CORRIGIDO PARA ORDENAR PELO NÚMERO DO PEDIDO
         take: limit,
         skip: skip,
         select: { id: true, orderNumber: true, customerName: true, totalAmount: true, status: true, createdAt: true }
@@ -153,7 +147,7 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    // 7. 🌟 NOVO: Vendas por Categoria e Canal (Origem)
+    // 7. 🌟 DISTRIBUIÇÕES: Categoria, Canal e PAGAMENTO
     const ordersWithDetails = await prisma.order.findMany({
       where: {
         createdAt: { gte: startDate, lte: endDate },
@@ -161,25 +155,37 @@ export async function GET(request: NextRequest) {
       },
       include: {
         orderItems: {
-          include: {
-            product: {
-              include: { category: true }
-            }
-          }
+          include: { product: { include: { category: true } } }
         }
       }
     });
 
     const categoryMap = new Map();
     const sourceMap = new Map();
+    const paymentMap = new Map();
+
+    // Tradutor de métodos de pagamento (caso use ENUMS em inglês no banco)
+    const paymentNames: any = {
+      PIX: 'PIX',
+      CREDIT_CARD: 'Cartão de Crédito',
+      DEBIT_CARD: 'Cartão de Débito',
+      CASH: 'Dinheiro',
+      MONEY: 'Dinheiro'
+    };
 
     ordersWithDetails.forEach(order => {
-      // Cálculo por Canal (Site vs Balcão)
       const orderRevenue = Number(order.totalAmount);
+      
+      // 1. Agrupar por Canal
       const sourceKey = order.source === 'ONLINE' ? 'Site (WhatsApp)' : 'Balcão (Loja)';
       sourceMap.set(sourceKey, (sourceMap.get(sourceKey) || 0) + orderRevenue);
 
-      // Cálculo por Categoria (baseado nos itens dentro do pedido)
+      // 2. Agrupar por Pagamento (Lendo a coluna paymentMethod)
+      const rawMethod = (order as any).paymentMethod || 'Outros'; 
+      const paymentKey = paymentNames[rawMethod] || rawMethod;
+      paymentMap.set(paymentKey, (paymentMap.get(paymentKey) || 0) + orderRevenue);
+
+      // 3. Agrupar por Categoria
       order.orderItems.forEach(item => {
         const catName = item.product?.category?.name || 'Sem Categoria';
         const itemTotal = Number(item.price) * item.quantity;
@@ -189,6 +195,11 @@ export async function GET(request: NextRequest) {
 
     const salesByCategory = Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
     const salesBySource = Array.from(sourceMap.entries()).map(([name, value]) => ({ name, value }));
+    
+    // Array com os pagamentos ordenados do maior pro menor
+    const salesByPayment = Array.from(paymentMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
 
     return NextResponse.json({
       period: parseInt(periodParam || '30'),
@@ -204,8 +215,9 @@ export async function GET(request: NextRequest) {
       },
       topProducts: topProductsByRevenue,       
       topProductsByClicks: topProductsByClicks, 
-      salesByCategory, // 🌟 ADICIONADO PARA O GRÁFICO DE PIZZA
-      salesBySource,   // 🌟 ADICIONADO PARA O GRÁFICO DE PIZZA
+      salesByCategory,
+      salesBySource,
+      salesByPayment,
       recentOrders: {
         items: recentOrders.map(o => ({ ...o, totalAmount: Number(o.totalAmount) })),
         pagination: {

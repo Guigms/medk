@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import WhatsAppButton from '@/components/WhatsAppButton';
-import CartWrapper from '@/components/CartWrapper';
 import { Providers } from '@/lib/providers';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import ConditionalLayout from '@/components/ConditionalLayout';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -17,6 +15,7 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+// 🌟 PRESERVADO: Seus metadados originais de SEO voltam a funcionar perfeitamente aqui!
 export const metadata: Metadata = {
   title: 'Farmácia Medk - Sua saúde em boas mãos no Passaré',
   description: 'Farmácia completa no Passaré, Fortaleza. Medicamentos, higiene, suplementos e cuidados pessoais com ótimos preços e atendimento de qualidade. Avaliação 5.0 no Google.',
@@ -35,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
@@ -54,38 +53,25 @@ export default function RootLayout({
                 'addressCountry': 'BR',
                 'postalCode': '60743-000'
               },
-              'geo': {
-                '@type': 'GeoCoordinates',
-                'latitude': '-3.8123',
-                'longitude': '-38.5267'
-              },
               'telephone': '+5585213967 83',
               'priceRange': '$$',
               'aggregateRating': {
                 '@type': 'AggregateRating',
                 'ratingValue': '5.0',
                 'reviewCount': '50'
-              },
-              'openingHoursSpecification': [
-                {
-                  '@type': 'OpeningHoursSpecification',
-                  'dayOfWeek': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-                  'opens': '08:00',
-                  'closes': '18:00'
-                }
-              ]
+              }
             })
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}>
-        {/* 🌟 Envolve TODA a árvore com o Providers */}
+      {/* 🌟 Injetado classes padrões e transição suave para o modo noturno v4 */}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900 transition-colors duration-300`}>
         <Providers>
-          <Header />
-          <main className="min-h-screen">{children}</main>
-          <Footer />
-          <WhatsAppButton />
-          <CartWrapper />
+          {/* 🌟 Envolve a aplicação com o gerenciador do modo escuro */}
+          <ThemeProvider>
+            {/* 🌟 Passamos o controle de exibição para o wrapper cliente de forma limpa */}
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </ThemeProvider>
         </Providers>
       </body>
     </html>

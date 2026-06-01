@@ -17,7 +17,14 @@ export async function GET(request: NextRequest) {
         createdAt: { gte: startDate, lte: endDate }
       },
       include: {
-        seller: { select: { id: true, name: true, commissionRate: true } },
+        seller: { 
+          select: { 
+            id: true, 
+            name: true, 
+            commissionRate: true,
+            monthlyGoal: true // ⚡ NOVO: Puxando a meta mensal do banco
+          } 
+        },
         order: { select: { totalAmount: true } }
       }
     });
@@ -32,6 +39,7 @@ export async function GET(request: NextRequest) {
           sellerId: sId,
           sellerName: record.seller.name,
           commissionRate: record.seller.commissionRate,
+          monthlyGoal: Number(record.seller.monthlyGoal || 0), // ⚡ NOVO: Salvando a meta no objeto agrupado
           totalSold: 0,
           pendingCommission: 0,
           paidCommission: 0,
@@ -40,8 +48,8 @@ export async function GET(request: NextRequest) {
       }
 
       const stats = sellersMap.get(sId);
-      const orderTotal = Number(record.order.totalAmount);
-      const commAmount = Number(record.amount);
+      const orderTotal = Number(record.order?.totalAmount || 0); // Adicionado fallback de segurança
+      const commAmount = Number(record.amount || 0);
 
       stats.totalSold += orderTotal;
       stats.salesCount += 1;

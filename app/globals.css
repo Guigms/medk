@@ -4,8 +4,27 @@
   --background: #f9fafb;
   --foreground: #111827;
   --primary-blue: #253289;
-  --primary-red: #E5202A;
-  --primary-light-blue: #10BCEC;
+  --primary-red: #e5202a;
+  
+  /* Cores da barra de rolagem (modo claro) */
+  --scrollbar-track: #f1f1f1;
+  --scrollbar-thumb: #253289;
+  --scrollbar-thumb-hover: #1a2461;
+}
+
+/* 🌟 NOVIDADE DO TAILWIND v4: Ativa o modo escuro baseado na classe .dark do HTML */
+@variant dark (&:where(.dark, .dark *));
+
+/* 🌟 VARIÁVEIS DO MODO ESCURO: Quando o HTML tiver a classe .dark, estas cores assumem o controle */
+.dark {
+  --background: #030712; /* cinza-950 bem premium */
+  --foreground: #f9fafb; /* texto claro */
+  --primary-blue: #3b82f6; /* azul adaptado para telas escuras */
+  
+  /* Cores da barra de rolagem (modo escuro) */
+  --scrollbar-track: #111827;
+  --scrollbar-thumb: #3b82f6;
+  --scrollbar-thumb-hover: #1d4ed8;
 }
 
 @theme inline {
@@ -19,6 +38,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Suaviza a transição de cores ao clicar no botão */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Smooth scrolling */
@@ -26,23 +47,23 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar adaptada para os dois modos */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #253289;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1a2461;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Line clamp utilities */
