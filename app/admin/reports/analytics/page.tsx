@@ -6,9 +6,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
-import { formatPrice } from '@/lib/utils';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Globe, Store, PieChart as PieIcon, CreditCard, ArrowLeft } from 'lucide-react';
+import { formatPrice, traduzirStatusPedido } from '@/lib/utils';
 
 const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#10b8a6', '#8b5cf6'];
 
@@ -327,7 +327,7 @@ export default function AnalyticsPage() {
                           order.status === 'CANCELLED' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400' :
                           'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
                         }`}>
-                          {order.status}
+                          {traduzirStatusPedido(order.status)}
                         </span>
                       </td>
                       <td className="py-4 text-right font-black text-gray-900 dark:text-white">

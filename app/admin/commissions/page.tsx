@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { formatPrice } from '@/lib/utils';
-import { Trophy, Target, DollarSign, CheckCircle2, AlertCircle, Lock, CalendarCheck, ArrowLeft } from 'lucide-react';
+import { Trophy, Target, DollarSign, CheckCircle2, AlertCircle, Wrench, Settings, CalendarCheck, ArrowLeft } from 'lucide-react';
 
 export default function ComissoesPage() {
   const { user } = useAuth();
@@ -13,27 +13,50 @@ export default function ComissoesPage() {
   const [sellers, setSellers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
+  const [temAcesso, setTemAcesso] = useState(false);
 
-  // 🛡️ TRAVA SAAS: Só entra quem for ADMIN da farmácia com módulo pago, OU o próprio Super Admin.
   const isSuperAdmin = user?.role?.toUpperCase() === 'SUPER_ADMIN';
   const isAdmin = user?.role?.toUpperCase() === 'ADMIN' || isSuperAdmin;
-  const temAcesso = isSuperAdmin || user?.moduleCommissions === true;
+
+  useEffect(() => {
+    const verificarLicencaEBuscarDados = async () => {
+      if (!user) return;
+
+      if (isSuperAdmin) {
+        setTemAcesso(true);
+        await fetchCommissions();
+        return;
+      }
+
+      try {
+        const configRes = await fetch('/api/admin/store-config');
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          
+          if (configData.moduleCommissions === true && isAdmin) {
+            setTemAcesso(true);
+            const res = await fetch('/api/admin/commissions');
+            if (res.ok) setSellers(await res.json());
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verificarLicencaEBuscarDados();
+  }, [user, isAdmin, isSuperAdmin, router]);
 
   const fetchCommissions = async () => {
-    try {
-      const res = await fetch('/api/admin/commissions');
-      if (res.ok) setSellers(await res.json());
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch('/api/admin/commissions');
+    if (res.ok) setSellers(await res.json());
+    setLoading(false);
   };
 
-  useEffect(() => { 
-    if (isAdmin && temAcesso) fetchCommissions(); 
-  }, [isAdmin, temAcesso]);
-
   const handlePay = async (sellerId: string, sellerName: string) => {
-    if (!confirm(`Tem certeza que deseja liquidar todas as comissões pendentes de ${sellerName}?`)) return;
+    if (!confirm(`Tem certeza que deseja liquidar as comissões de ${sellerName}?`)) return;
     
     setIsPaying(true);
     try {
@@ -54,22 +77,40 @@ export default function ComissoesPage() {
     }
   };
 
-  // 🛡️ Tela de Bloqueio se o cliente não contratou o módulo ou se um Atendente tentar burlar a URL
+  // 🛡️ TELA DE "EM CONSTRUÇÃO" ANIMADA
   if (user && (!isAdmin || !temAcesso)) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4 transition-colors duration-300">
-          <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-xl max-w-md text-center border border-red-100 dark:border-red-950/40">
-            <div className="w-20 h-20 bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-              <Lock size={40} />
+          <div className="bg-white dark:bg-gray-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl max-w-md text-center border border-amber-100 dark:border-amber-900/30 relative overflow-hidden group">
+            
+            {/* Efeito de luz no fundo que pulsa */}
+            <div className="absolute -top-20 -right-20 w-48 h-48 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-3xl animate-pulse"></div>
+
+            {/* 🌟 BLOCO DA ANIMAÇÃO */}
+            <div className="relative w-32 h-32 mx-auto mb-6 flex items-center justify-center">
+              {/* Engrenagem maior girando lentamente no fundo */}
+              <Settings 
+                size={100} 
+                strokeWidth={1} 
+                className="absolute text-amber-200 dark:text-amber-900/40 animate-spin" 
+                style={{ animationDuration: '4s' }} 
+              />
+              
+              {/* Círculo central com a Chave (com efeito de flutuação/bounce) */}
+              <div className="relative z-10 w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/60 dark:to-amber-800/60 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800 animate-bounce" style={{ animationDuration: '2.5s' }}>
+                <Wrench size={28} strokeWidth={2.5} />
+              </div>
             </div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Recurso Bloqueado</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm font-medium">
-              Este módulo de gestão não está ativo na sua licença atual ou você não possui permissão de acesso.
+
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-3 tracking-tight">Módulo em Construção</h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm font-medium leading-relaxed">
+              A nossa equipa de engenharia está a apertar os últimos parafusos! O novo painel de <span className="text-amber-600 dark:text-amber-500 font-bold">Comissões e Metas</span> estará disponível em breve.
             </p>
+            
             <button 
               onClick={() => router.back()}
-              className="w-full bg-[#253289] dark:bg-blue-600 text-white px-6 py-3 rounded-xl font-black hover:bg-[#1a2461] dark:hover:bg-blue-700 transition-all cursor-pointer shadow-md shadow-blue-900/10"
+              className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3.5 rounded-xl font-black hover:bg-gray-800 dark:hover:bg-gray-100 transition-all cursor-pointer shadow-lg shadow-gray-900/20 dark:shadow-white/10"
             >
               Voltar ao Início
             </button>
@@ -82,7 +123,7 @@ export default function ComissoesPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold text-[#253289] dark:text-blue-400">
-        Carregando painel de comissões...
+        A carregar painel de comissões...
       </div>
     );
   }
@@ -123,7 +164,7 @@ export default function ComissoesPage() {
           <div className="bg-white dark:bg-gray-900 p-12 rounded-3xl border border-gray-200 dark:border-gray-800 text-center shadow-sm transition-colors">
             <Trophy size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Nenhuma venda comissionada ainda</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">As comissões aparecerão aqui quando os pedidos forem concluídos pela equipe.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">As comissões aparecerão aqui quando os pedidos forem concluídos pela equipa.</p>
           </div>
         ) : (
           <>
@@ -146,7 +187,7 @@ export default function ComissoesPage() {
             </div>
 
             {/* LISTA DETALHADA COM DESEMPENHO INDIVIDUAL */}
-            <h2 className="text-lg font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2"><Target size={22} className="text-blue-500 dark:text-blue-400"/> Desempenho da Equipe</h2>
+            <h2 className="text-lg font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2"><Target size={22} className="text-blue-500 dark:text-blue-400"/> Desempenho da Equipa</h2>
             <div className="space-y-4">
               {sellers.map(seller => {
                 const metaDoVendedor = Number(seller.monthlyGoal) || 0;
@@ -157,14 +198,12 @@ export default function ComissoesPage() {
                   <div key={seller.sellerId} className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition-colors">
                     <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-6">
                       
-                      {/* Lado Esquerdo: Info e Barra de Meta */}
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
                           <h3 className="font-black text-lg text-gray-900 dark:text-gray-100 tracking-tight">{seller.sellerName}</h3>
                           <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-md text-xs font-black border dark:border-gray-700">{seller.salesCount} Vendas</span>
                         </div>
                         
-                        {/* Barra de Progresso Individual */}
                         <div className="w-full">
                           <div className="flex justify-between text-xs font-black mb-1.5">
                             <span className="text-gray-400 dark:text-gray-500">Progresso da Meta</span>
@@ -181,7 +220,6 @@ export default function ComissoesPage() {
                         </div>
                       </div>
 
-                      {/* Lado Direito: Valores Financeiros e Ação de Pagamento */}
                       <div className="flex items-center gap-6 p-4 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-800 transition-colors">
                         <div>
                           <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-black mb-1 flex items-center gap-1"><AlertCircle size={12}/> Pendente</p>

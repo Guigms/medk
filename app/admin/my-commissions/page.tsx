@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { formatPrice } from '@/lib/utils';
-import { DollarSign, Target, TrendingUp, Award, ArrowLeft, Receipt } from 'lucide-react';
+import { DollarSign, Target, TrendingUp, Award, ArrowLeft, Receipt, Wrench, Settings } from 'lucide-react';
 
 // 🛡️ Tipagem TypeScript
 interface CommissionRecord {
@@ -40,15 +40,9 @@ export default function MyCommissionsPage() {
     history: []
   });
 
-  // 🛡️ TRAVA SAAS: Bloqueia se a farmácia não tiver o módulo ativado
+  // 🛡️ TRAVA SAAS: Verifica se a farmácia tem o módulo ativado
   const isSuperAdmin = user?.role?.toUpperCase() === 'SUPER_ADMIN';
   const temAcesso = isSuperAdmin || user?.moduleCommissions === true;
-
-  useEffect(() => {
-    if (user && !temAcesso) {
-      router.replace('/admin/dashboard'); // Expulsa silenciosamente se não tiver licença
-    }
-  }, [user, temAcesso, router]);
 
   useEffect(() => {
     const fetchMyMetrics = async () => {
@@ -66,24 +60,59 @@ export default function MyCommissionsPage() {
       }
     };
 
-    if (temAcesso) fetchMyMetrics();
+    if (temAcesso) {
+      fetchMyMetrics();
+    } else {
+      setLoading(false); // Remove o loading se não tiver acesso, para mostrar a tela de construção
+    }
   }, [user, temAcesso]);
 
-  if (!user || !temAcesso) return null;
+  // 🛡️ TELA DE "EM CONSTRUÇÃO" PARA O ATENDENTE (Substitui o redirecionamento silencioso)
+  if (user && !temAcesso) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4 transition-colors duration-300">
+          <div className="bg-white dark:bg-gray-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl max-w-md text-center border border-amber-100 dark:border-amber-900/30 relative overflow-hidden group">
+            
+            <div className="absolute -top-20 -right-20 w-48 h-48 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-3xl animate-pulse"></div>
+
+            <div className="relative w-32 h-32 mx-auto mb-6 flex items-center justify-center">
+              <Settings size={100} strokeWidth={1} className="absolute text-amber-200 dark:text-amber-900/40 animate-spin" style={{ animationDuration: '4s' }} />
+              <div className="relative z-10 w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/60 dark:to-amber-800/60 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800 animate-bounce" style={{ animationDuration: '2.5s' }}>
+                <Wrench size={28} strokeWidth={2.5} />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-3 tracking-tight">Módulo em Construção</h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm font-medium leading-relaxed">
+              O seu painel de <span className="text-amber-600 dark:text-amber-500 font-bold">Metas e Resultados</span> está a ser preparado pela nossa equipe técnica e estará disponível em breve!
+            </p>
+            
+            <button 
+              onClick={() => router.back()}
+              className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3.5 rounded-xl font-black hover:bg-gray-800 dark:hover:bg-gray-100 transition-all cursor-pointer shadow-lg shadow-gray-900/20 dark:shadow-white/10"
+            >
+              Voltar ao Início
+            </button>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-[#253289] dark:text-blue-400 font-bold transition-colors">
+        Carregando suas métricas...
+      </div>
+    );
+  }
 
   // Cálculos de Progresso
   const goal = Number(metrics.monthlyGoal) || 0;
   const sales = Number(metrics.totalSales) || 0;
   const progressPercentage = goal > 0 ? Math.min((sales / goal) * 100, 100) : 0;
   const isGoalReached = sales >= goal && goal > 0;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-[#253289] font-bold">
-        Carregando suas métricas...
-      </div>
-    );
-  }
 
   return (
     <ProtectedRoute>
@@ -100,7 +129,7 @@ export default function MyCommissionsPage() {
               <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
             </button>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2 tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2 tracking-tight text-gray-900 dark:text-white">
                 <TrendingUp size={32} className="text-[#253289] dark:text-blue-400" /> Minhas Comissões
               </h1>
               <p className="text-sm text-gray-500 mt-1 font-medium">Acompanhe sua performance e ganhos deste mês.</p>
